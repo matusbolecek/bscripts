@@ -10,9 +10,8 @@ import glob
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
 
-# pack name
+# Pack name and paths
 pack_name = input('What is the pack name?')
-
 finals_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}/Final')
 if not finals_path.exists():
     finals_path.mkdir(parents=True)
@@ -24,11 +23,10 @@ if not pack_path.exists():
     pack_path.mkdir()
 resources = Path('/Users/matusbolecek/BEATSTARS/! Scripts/Resources')
 
-# input dataset
+# Input dataset
 beat_properties = []
 beat_paths = []
 beat_number = 1
-
 sortdir = input('Input the SORTED beat directory path: ')
 sortdir = sortdir.strip("'\"")
 unsortdir = input('Input the UNSORTED beat directory path: ')
@@ -36,7 +34,7 @@ unsortdir = unsortdir.strip("'\"")
 lastdir = input('Input the BONUS beat directory path ("x" if none): ')
 lastdir = lastdir.strip("'\"")
 
-# Mechanizmus na zoradenie
+# Sorting
 video_beat_count = 0
 temp_list = []
 for item in listdir_nohidden(sortdir):
@@ -51,6 +49,7 @@ if lastdir != "x":
     for item in listdir_nohidden(lastdir):
         temp_list.append(item)
 
+# Props input
 for beat in temp_list:
     input_properties = input(f'Paste the properties of the {beat}. beat: ')
 
@@ -87,7 +86,7 @@ for beat in temp_list:
             beat_paths.append(beat)
             beat_number += 1
 
-# put file into folder
+# Finals folder output
 track_nr = 1
 for paths in beat_paths:
     current_props = str(beat_properties[track_nr-1])
@@ -98,11 +97,10 @@ for paths in beat_paths:
         collab = str(f'@matejcikbeats x {props[3]}')
     new_name = str(f'{track_nr}. {props[0]} - {props[2]}BPM {props[1]} {collab}.mp3')
     mp3mpeg = str(f'ffmpeg -i "{paths}" -ab 320k "{finals_path}/{new_name}"')
-    # subprocess.run(mp3mpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
     track_nr += 1
 
-# put into temps
+# Temps folder output
 temp_nr = 1
 time_list = []
 for temps in beat_paths:
@@ -118,7 +116,7 @@ for temps in beat_paths:
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
     temp_nr += 1
 
-# description
+# Description generator
 f = open(f"{pack_path}/desc.txt", "a+")
 total_time = 0
 time_number = 0
@@ -130,7 +128,7 @@ for times in time_list:
     total_time += times
 f.close()
 
-# subtitles
+# .srt generator
 f = open(f"{pack_path}/{pack_name}.srt", "a+")
 sub_starttime = 0
 sub_endtime = 0
@@ -157,7 +155,7 @@ for times in time_list:
     sub_starttime += times
 f.close()
 
-# beat list pdf
+# PDF Generator
 class PDF(FPDF):
     def footer(self):
         self.set_y(-15)
@@ -205,7 +203,7 @@ pdf.set_y(pdf.h / 2 - 15)
 pdf.cell(w=pdf.w - 25, txt=f'"{pack_name}" Beatpack Terms', align="C")
 pdf.output(f'{pack_path}/title.pdf')
 
-# merge pdf
+# merge
 pdfs = [f'{pack_path}/title.pdf', f'{resources}/terms.pdf', f'{pack_path}/list.pdf']
 merger = PdfMerger()
 for pdf in pdfs:
@@ -216,7 +214,7 @@ merger.close()
 os.remove(f'{pack_path}/title.pdf')
 os.remove(f'{pack_path}/list.pdf')
 
-# thank you
+# thank you .txt generator
 f = open(f"{finals_path}/THANK_YOU!.txt", "a+")
 f.write(f'Thank you for downloading the {pack_name} beat pack! \n')
 f.write(f'It contains {len(beat_properties)} high-quality beats to make hits with. \n')
@@ -231,7 +229,7 @@ f.write('instagram.com/matejcikbeats \n')
 f.write('matejcikbeats.beatstars.com \n')
 f.close()
 
-# beats list
+# Excel list generator
 f = open(f"{pack_path}/excel.txt", "a+")
 for properties in beat_properties:
     f.write(properties)
