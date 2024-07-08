@@ -96,9 +96,16 @@ for paths in beat_paths:
     else:
         collab = str(f'@matejcikbeats x {props[3]}')
     new_name = str(f'{track_nr}. {props[0]} - {props[2]}BPM {props[1]} {collab}.mp3')
-    mp3mpeg = str(f'ffmpeg -i "{paths}" -ab 320k "{finals_path}/{new_name}"')
+    
+    # Tag time-stretch
+    track_bpm = int(props[2])
+    tagmpeg = str(f'ffmpeg -i "{resources}/matejcikbeats_tag.wav" -filter:a "atempo={(18 / ((1/(track_bpm / 60))*48))}" newtag.wav')
+    subprocess.run(tagmpeg, shell = True, executable="/bin/bash")
+    
+    mp3mpeg = str(f'ffmpeg -i "{paths}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest -ab 320k "{finals_path}/{new_name}"')
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
     track_nr += 1
+    os.remove('newtag.wav')
 
 # Temps folder output
 temp_nr = 1
@@ -215,7 +222,7 @@ os.remove(f'{pack_path}/title.pdf')
 os.remove(f'{pack_path}/list.pdf')
 
 # thank you .txt generator
-f = open(f"{finals_path}/THANK_YOU!.txt", "a+")
+f = open(f"{finals_path}/THANK YOU!.txt", "a+")
 f.write(f'Thank you for downloading the {pack_name} beat pack! \n')
 f.write(f'It contains {len(beat_properties)} high-quality beats to make hits with. \n')
 f.write('Make sure to read the terms before using the beats. \n')
