@@ -12,19 +12,20 @@ def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
 
 # Options
-watermark = str('/Users/matusbolecek/Music/BEATSTARS/logos/watermark.png')
-export_directory = str('/Users/matusbolecek/BEATSTARS/Export')
-mp3_directory = str('/Users/matusbolecek/BEATSTARS/Bounces')
+from beatstars_config import Beatstars
+watermark = Beatstars.watermark
+export_directory = Beatstars.export_directory
+mp3_directory = Beatstars.mp3_directory
+
+# Inputs
 artist = input('nardo / future / lone: ')
 if artist == "nardo" or artist == "future" or artist == "lone":
-    picdir = str(f'/Users/matusbolecek/BEATSTARS/pics/{artist}')
+    picdir = str(f'{Beatstars.pictures}/{artist}')
 else:
     print('Not a valid option!')
     sys.exit()
 
-# Root directory input
-rootdir = input('Input the root directory path: ')
-rootdir = rootdir.strip("'\"")
+rootdir = input('Input the root directory path: ').strip("'\"")
 
 # Check if there is enough pictures
 count1 = 0
@@ -89,11 +90,5 @@ for folder in listdir_nohidden(rootdir):
     mp3mpeg = str(f'ffmpeg -i "{master_path}" -ab 320k {mp3_name}')
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
     print('Done!')
-
-    f = open("/Users/matusbolecek/BEATSTARS/output.txt", "a")
-    f.write(master.replace('_Master.wav', ''))
-    f.write('\n')
-    f.close()
-    print('Written to output.txt')
 
     num += 1

@@ -5,6 +5,8 @@ import re
 import subprocess
 import os
 
+from beatstars_config import Videopicker
+
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
 
@@ -15,16 +17,16 @@ pack_name = input('What is the pack name? ')
 viddir = input('Input the video directory path: ')
 viddir = viddir.strip("'\"")
 
-pack_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}')
-finals_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}/vids')
+pack_path = Path(f'{Videopicker.packs_folder}/{pack_name}')
+finals_path = Path(f'{Videopicker.packs_folder}/{pack_name}/vids')
 if not pack_path.exists():
     print("Warning: the pack folder doesn't seem to exist")
     output_count = int(input('How many videos should be rendered? '))
 else:
     output_count = 0
-    for temps in listdir_nohidden(Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}/temps')):
+    for temps in listdir_nohidden(Path(f'{Videopicker.packs_folder}/{pack_name}/temps')):
         output_count += 1
-    
+
 finals_path.mkdir(parents=True)
 
 # main loop

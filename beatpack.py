@@ -9,8 +9,9 @@ import glob
 import wave
 import contextlib
 
-resources = Path('/Users/matusbolecek/BEATSTARS/! Scripts/Resources')
-packs_path = '/Users/matusbolecek/BEATSTARS/Packs'
+from beatstars_config import Beatpack
+resources = Beatpack.resources
+packs_path = Beatpack.packs_path
 
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))

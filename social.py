@@ -76,6 +76,7 @@ for folder in listdir_nohidden(video_folder):
 
         ffmpeg_fin = str(f'ffmpeg -ss 0.1 -i "{beat_properties[0]}_temp.mp4" -c copy "{folder_path}/{beat_properties[0]}_{Path(picture_path).name}.mp4"')
         subprocess.run(ffmpeg_fin, shell = True, executable="/bin/bash")
-        os.remove(f'{beat_properties[0]}_temp.mp4')
-        os.remove(f"{folder_path}/props.txt")
-        os.remove(f"{video_path}")
+
+    os.remove(f'{beat_properties[0]}_temp.mp4')
+    os.remove(f"{folder_path}/props.txt")
+    os.remove(f"{video_path}")
