@@ -1,4 +1,4 @@
-from pathlib import Path  
+from pathlib import Path
 import re
 import subprocess
 import time
@@ -6,33 +6,35 @@ from fpdf import FPDF
 from pypdf import PdfMerger
 import os
 import glob
+import wave
+import contextlib
+
+resources = Path('/Users/matusbolecek/BEATSTARS/! Scripts/Resources')
+packs_path = '/Users/matusbolecek/BEATSTARS/Packs'
 
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
+def dircheck(dir):
+   if not dir.exists():
+    dir.mkdir(parents=True) 
 
 # Pack name and paths
 pack_name = input('What is the pack name?')
-finals_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}/Final')
-if not finals_path.exists():
-    finals_path.mkdir(parents=True)
-res_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}/Resources')
-if not res_path.exists():
-    res_path.mkdir()
-pack_path = Path(f'/Users/matusbolecek/BEATSTARS/Packs/{pack_name}')
-if not pack_path.exists():
-    pack_path.mkdir()
-resources = Path('/Users/matusbolecek/BEATSTARS/! Scripts/Resources')
+finals_path = Path(f'/{packs_path}/{pack_name}/Final')
+dircheck(finals_path)
+short_path = Path(f'{packs_path}/{pack_name}/Short')
+dircheck(Path(f'{short_path}/Resources'))
+long_path = Path(f'{packs_path}/{pack_name}/Long')
+dircheck(Path(f'{long_path}/Resources'))
+pack_path = Path(f'{packs_path}/{pack_name}')
 
 # Input dataset
 beat_properties = []
 beat_paths = []
 beat_number = 1
-sortdir = input('Input the SORTED beat directory path: ')
-sortdir = sortdir.strip("'\"")
-unsortdir = input('Input the UNSORTED beat directory path: ')
-unsortdir = unsortdir.strip("'\"")
-lastdir = input('Input the BONUS beat directory path ("x" if none): ')
-lastdir = lastdir.strip("'\"")
+sortdir = input('Input the SORTED beat directory path: ').strip("'\"")
+unsortdir = input('Input the UNSORTED beat directory path: ').strip("'\"")
+lastdir = input('Input the BONUS beat directory path ("x" if none): ').strip("'\"")
 
 # Sorting
 video_beat_count = 0
@@ -107,7 +109,7 @@ for paths in beat_paths:
     track_nr += 1
     os.remove('newtag.wav')
 
-# Temps folder output
+# Short temps folder output
 temp_nr = 1
 time_list = []
 for temps in beat_paths:
@@ -117,14 +119,14 @@ for temps in beat_paths:
     temp_time = float((1/(int(bpm_import[2]) / 60))*160)
     time_list.append(temp_time)
     if Path(temps).suffix[1:] == 'mp3':
-        mp3mpeg = str(f'ffmpeg -to {temp_time} -i "{temps}" -af "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB" -ab 320k "{res_path}/{temp_nr}.wav"')
+        mp3mpeg = str(f'ffmpeg -to {temp_time} -i "{temps}" -af "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB" -ab 320k "{short_path}/Resources/{temp_nr}.wav"')
     else:
-        mp3mpeg = str(f'ffmpeg -to {temp_time} -i "{temps}" -ab 320k "{res_path}/{temp_nr}.wav"')
+        mp3mpeg = str(f'ffmpeg -to {temp_time} -i "{temps}" -ab 320k "{short_path}/Resources/{temp_nr}.wav"')
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
     temp_nr += 1
 
-# Description generator
-f = open(f"{pack_path}/desc.txt", "a+")
+# Short description generator
+f = open(f"{short_path}/desc.txt", "a+")
 total_time = 0
 time_number = 0
 for times in time_list:
@@ -135,8 +137,8 @@ for times in time_list:
     total_time += times
 f.close()
 
-# .srt generator
-f = open(f"{pack_path}/{pack_name}.srt", "a+")
+# Short vid .srt generator
+f = open(f"{short_path}/short_subtitles.srt", "a+")
 sub_starttime = 0
 sub_endtime = 0
 time_number = 0
@@ -158,6 +160,61 @@ for times in time_list:
     f.write(str(f"{time.strftime('%H:%M:%S:000', time.gmtime(sub_endtime - 10))} --> {time.strftime('%H:%M:%S:000', time.gmtime(sub_endtime))}\n"))
     f.write(f'Download this beat and {len(beat_properties) - 1} others for FREE!\n')
     f.write('Link in the Description \n\n')
+    time_number += 1
+    sub_starttime += times
+f.close()
+
+# Long temps folder output
+temp_nr = 1
+time_list = []
+for temps in beat_paths:
+    outputname = str(f'{long_path}/Resources/{temp_nr}.wav')
+    if Path(temps).suffix[1:] == 'mp3':
+        mp3mpeg = str(f'ffmpeg -i "{temps}" -af "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB" -ab 320k "{outputname}"')
+    else:
+        mp3mpeg = str(f'ffmpeg -i "{temps}" -ab 320k "{outputname}"')
+    subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
+    with contextlib.closing(wave.open(outputname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        time_list.append(duration)
+    temp_nr += 1
+
+# Long description generator
+f = open(f"{long_path}/desc.txt", "a+")
+total_time = 0
+time_number = 0
+for times in time_list:
+    desc_import = tuple(beat_properties[time_number].split(';'))
+    f.write(f"{time.strftime('%M:%S', time.gmtime(total_time))} {desc_import[0]} ({desc_import[4]})")
+    f.write('\n')
+    time_number += 1
+    total_time += times
+f.close()
+
+# Long vid .srt generator
+f = open(f"{long_path}/long_subtitles.srt", "a+")
+sub_starttime = 0
+sub_endtime = 0
+time_number = 0
+for times in time_list:
+    sub_endtime += times
+    desc_import = tuple(beat_properties[time_number].split(';'))
+    f.write(str(int(2 * (time_number + 1) - 1)))
+    f.write('\n')
+    f.write(f"{time.strftime('%H:%M:%S:000', time.gmtime(sub_starttime))} --> {time.strftime('%H:%M:%S:000', time.gmtime(sub_endtime - 10))}\n")
+    f.write(str(f'"{desc_import[0]}" - {desc_import[2]} {desc_import[1]}\n'))
+    if desc_import[3] == '-':
+        collab = str('@matejcikbeats')
+    else:
+        collab = str(f'@matejcikbeats x {desc_import[3]}')
+    f.write(f'prod. by {collab}\n')
+    f.write('\n')
+    f.write(str(int(2 * (time_number + 1))))
+    f.write('\n')
+    f.write(str(f"{time.strftime('%H:%M:%S:000', time.gmtime(sub_endtime - 10))} --> {time.strftime('%H:%M:%S:000', time.gmtime(sub_endtime))}\n"))
+    f.write(f'Purchase this beat at the link in the Description \n\n')
     time_number += 1
     sub_starttime += times
 f.close()
