@@ -8,6 +8,7 @@ import os
 import glob
 import wave
 import contextlib
+import random
 
 from beatstars_config import Beatpack
 resources = Beatpack.resources
@@ -17,7 +18,7 @@ def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
 def dircheck(dir):
    if not dir.exists():
-    dir.mkdir(parents=True) 
+    dir.mkdir(parents=True)
 
 # Pack name and paths
 pack_name = input('What is the pack name?')
@@ -36,6 +37,14 @@ beat_number = 1
 sortdir = input('Input the SORTED beat directory path: ').strip("'\"")
 unsortdir = input('Input the UNSORTED beat directory path: ').strip("'\"")
 lastdir = input('Input the BONUS beat directory path ("x" if none): ').strip("'\"")
+
+# Tag list
+tag_list = []
+for item in listdir_nohidden(f'{resources}/Tags'):
+    tag_list.append(item)
+if len(tag_list) == 0:
+    print('No tags in Tag folder!')
+    sys.exit()
 
 # Sorting
 video_beat_count = 0
@@ -100,9 +109,9 @@ for paths in beat_paths:
         collab = str(f'@matejcikbeats x {props[3]}')
     new_name = str(f'{track_nr}. {props[0]} - {props[2]}BPM {props[1]} {collab}.mp3')
     
-    # Tag time-stretch
+    # Tag pick and time-stretch
     track_bpm = int(props[2])
-    tagmpeg = str(f'ffmpeg -i "{resources}/matejcikbeats_tag.wav" -filter:a "atempo={(18 / ((1/(track_bpm / 60))*48))}" newtag.wav')
+    tagmpeg = str(f'ffmpeg -i "{random.choice(tag_list)}" -filter:a "atempo={(18 / ((1/(track_bpm / 60))*48))}" newtag.wav')
     subprocess.run(tagmpeg, shell = True, executable="/bin/bash")
     
     mp3mpeg = str(f'ffmpeg -i "{paths}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest -ab 320k "{finals_path}/{new_name}"')
