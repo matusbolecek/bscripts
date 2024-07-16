@@ -20,6 +20,13 @@ def dircheck(dir):
    if not dir.exists():
     dir.mkdir(parents=True)
 
+# BPM checking to prevent wrong inputs
+bpmcheck_query = input('Enable bpm checking? (Y/n)')
+if bpmcheck_query == 'N' or bpmcheck_query == 'n':
+    disable_bpm_check = 1
+else:
+    disable_bpm_check = 0
+
 # Pack name and paths
 pack_name = input('What is the pack name?')
 finals_path = Path(f'/{packs_path}/{pack_name}/Final')
@@ -82,11 +89,7 @@ for beat in temp_list:
                 bpm = max(bpm_extract)
     
     bpm_import = tuple(input_properties.split(';'))
-    if int(bpm_import[2]) == int(bpm):
-        beat_properties.append(input_properties)
-        beat_paths.append(beat)
-        beat_number += 1        
-    else:
+    if int(bpm_import[2]) != int(bpm) and disable_bpm_check == 0:
         check_input = input(f'The BPM of the selected track ({bpm}) does not match the track properties ({bpm_import[2]}). Do you want to procceed anyway? (Y/N)')
         if check_input == 'Y':
             beat_properties.append(input_properties)
@@ -97,6 +100,10 @@ for beat in temp_list:
             beat_properties.append(input_properties)
             beat_paths.append(beat)
             beat_number += 1
+    else:
+        beat_properties.append(input_properties)
+        beat_paths.append(beat)
+        beat_number += 1
 
 # Finals folder output
 track_nr = 1
@@ -114,7 +121,7 @@ for paths in beat_paths:
     tagmpeg = str(f'ffmpeg -i "{random.choice(tag_list)}" -filter:a "atempo={(18 / ((1/(track_bpm / 60))*48))}" newtag.wav')
     subprocess.run(tagmpeg, shell = True, executable="/bin/bash")
     
-    mp3mpeg = str(f'ffmpeg -i "{paths}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest -ab 320k "{finals_path}/{new_name}"')
+    mp3mpeg = str(f'ffmpeg -i "{paths}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest:normalize=0 -ab 320k "{finals_path}/{new_name}"')
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash")
     track_nr += 1
     os.remove('newtag.wav')
