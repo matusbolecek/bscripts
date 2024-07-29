@@ -12,3 +12,4 @@ class Beatstars:
 
 class Videopicker:
     packs_folder = '/Users/matusbolecek/BEATSTARS/Packs'
+    video_folder = '/Users/matusbolecek/Movies/future'
