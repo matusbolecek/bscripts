@@ -1,3 +1,5 @@
+# Rename to beatstars_config.py
+
 from pathlib import Path
 
 beatstars_folder = '/Volumes/wd/BEATSTARS'
