@@ -8,19 +8,15 @@ import random
 import glob
 import re
 
-def listdir_nohidden(path):
-    return glob.glob(os.path.join(path, '*'))
 
 # Options
-from beatstars_config import Beatstars, beatstars_folder
-watermark = Beatstars.watermark
-export_directory = Beatstars.export_directory
-mp3_directory = Beatstars.mp3_directory
+from beatstars_config import Typebeat, beatstars_folder, listdir_nohidden
 
 # Inputs
-artist = input('nardo / future / lone: ')
-if artist == "nardo" or artist == "future" or artist == "lone":
-    picdir = str(f'{Beatstars.pictures}/{artist}')
+artists = ['nardo', 'future', 'southside', 'lone']
+artist = input(f"{' / '.join(artists)}: ")
+if artist in artists:
+    picdir = str(f'{Typebeat.pictures}/{artist}')
 else:
     print('Not a valid option!')
     sys.exit()
@@ -78,15 +74,15 @@ for folder in listdir_nohidden(rootdir):
 
     # Render
     print(f'Rendering file {num}/{count2}')
-    export_name = (f"'{export_directory}/{Path(master).stem}.mp4'")
-    ffmpeg=str(f'ffmpeg -threads 0 -framerate 24 -loop 1 -i "{picture_path}" -i {watermark} -i "{master_path}" -filter_complex "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:a aac -c:v h264_videotoolbox -shortest {export_name}')
+    export_name = (f"'{Typebeat.export_directory}/{Path(master).stem}.mp4'")
+    ffmpeg=str(f'ffmpeg -threads 0 -framerate 24 -loop 1 -i "{picture_path}" -i {Typebeat.watermark} -i "{master_path}" -filter_complex "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:a aac -c:v h264_videotoolbox -shortest {export_name}')
     subprocess.run(ffmpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
 
     shutil.move(picture_path, folder_path)
     print('Done!')
 
     print(f'Rendering MP3 {num}/{count2}')
-    mp3_name = (f"'{mp3_directory}/{Path(master).stem} ({artist}).mp3'")
+    mp3_name = (f"'{Typebeat.mp3_directory}/{Path(master).stem} ({artist}).mp3'")
     mp3mpeg = str(f'ffmpeg -i "{master_path}" -ab 320k {mp3_name}')
     subprocess.run(mp3mpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
     print('Done!')

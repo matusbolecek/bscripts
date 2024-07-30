@@ -7,8 +7,7 @@ import sys
 import glob
 import fnmatch
 
-def listdir_nohidden(path):
-    return glob.glob(os.path.join(path, '*'))
+from beatstars_config import listdir_nohidden
 
 # Root directory input
 rootdir = input('Input the root directory path: ').strip("'\"")
