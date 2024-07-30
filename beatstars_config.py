@@ -1,15 +1,17 @@
 from pathlib import Path
 
+beatstars_folder = '/Volumes/wd/BEATSTARS'
+
 class Beatpack:
-    resources = Path('/Users/matusbolecek/BEATSTARS/! Scripts/Resources')
-    packs_path = '/Users/matusbolecek/BEATSTARS/Packs'
+    resources = Path('') # Path to resources folder
+    packs_path = f'{beatstars_folder}/Packs'
 
 class Beatstars:
-    watermark = str('/Users/matusbolecek/Music/BEATSTARS/logos/watermark.png')
-    export_directory = str('/Users/matusbolecek/BEATSTARS/Export')
-    mp3_directory = str('/Users/matusbolecek/BEATSTARS/Bounces')
-    pictures = '/Users/matusbolecek/BEATSTARS/pics'
+    watermark = str('') # Path to watermark
+    export_directory = str(f'{beatstars_folder}/Export')
+    mp3_directory = str(f'{beatstars_folder}/Bounces')
+    pictures = f'{beatstars_folder}/pics'
 
 class Videopicker:
-    packs_folder = '/Users/matusbolecek/BEATSTARS/Packs'
-    video_folder = '/Users/matusbolecek/Movies/future'
+    packs_folder = f'{beatstars_folder}/Packs'
+    video_folder = '' # Music video clips path
