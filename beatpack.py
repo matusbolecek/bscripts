@@ -10,7 +10,7 @@ import wave
 import contextlib
 import random
 
-from beatstars_config import Beatpack
+from beatstars_config import Beatpack, beatstars_folder
 resources = Beatpack.resources
 packs_path = Beatpack.packs_path
 

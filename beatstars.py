@@ -12,7 +12,7 @@ def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
 
 # Options
-from beatstars_config import Beatstars
+from beatstars_config import Beatstars, beatstars_folder
 watermark = Beatstars.watermark
 export_directory = Beatstars.export_directory
 mp3_directory = Beatstars.mp3_directory

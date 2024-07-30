@@ -5,7 +5,7 @@ import re
 import subprocess
 import os
 
-from beatstars_config import Videopicker
+from beatstars_config import Videopicker, beatstars_folder
 
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
