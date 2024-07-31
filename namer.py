@@ -3,8 +3,7 @@ import os
 import glob
 import sys
 
-def listdir_nohidden(path):
-    return glob.glob(os.path.join(path, '*'))
+from beatstars import listdir_nohidden
 
 folder_path = Path(input('Input the directory: ').strip("'\""))
 keyword = str(os.path.basename(folder_path))[:-1]

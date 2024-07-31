@@ -8,9 +8,8 @@ import random
 import glob
 import re
 
-
-# Options
-from beatstars_config import Typebeat, beatstars_folder, listdir_nohidden
+from beatstars_config import Typebeat, beatstars_folder
+from beatstars import listdir_nohidden
 
 # Inputs
 artists = ['nardo', 'future', 'southside', 'lone']
@@ -75,8 +74,8 @@ for folder in listdir_nohidden(rootdir):
     # Render
     print(f'Rendering file {num}/{count2}')
     export_name = (f"'{Typebeat.export_directory}/{Path(master).stem}.mp4'")
-    ffmpeg=str(f'ffmpeg -threads 0 -framerate 24 -loop 1 -i "{picture_path}" -i {Typebeat.watermark} -i "{master_path}" -filter_complex "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:a aac -c:v h264_videotoolbox -shortest {export_name}')
-    subprocess.run(ffmpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
+    ffmpeg=str(f'ffmpeg -threads 0 -framerate 24 -loop 1 -i "{picture_path}" -i "{Typebeat.watermark}" -i "{master_path}" -filter_complex "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:a aac -c:v h264_videotoolbox -shortest {export_name}')
+    subprocess.run(ffmpeg, shell = True, executable="/bin/bash") # , stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT
 
     shutil.move(picture_path, folder_path)
     print('Done!')

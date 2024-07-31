@@ -11,14 +11,7 @@ import contextlib
 import random
 
 from beatstars_config import Beatpack, beatstars_folder
-resources = Beatpack.resources
-packs_path = Beatpack.packs_path
-
-def listdir_nohidden(path):
-    return glob.glob(os.path.join(path, '*'))
-def dircheck(dir):
-   if not dir.exists():
-    dir.mkdir(parents=True)
+from beatstars import listdir_nohidden, bpm_convert, dircheck
 
 # BPM checking to prevent wrong inputs
 bpmcheck_query = input('Enable bpm checking? (Y/n)')
@@ -29,13 +22,13 @@ else:
 
 # Pack name and paths
 pack_name = input('What is the pack name?')
-finals_path = Path(f'/{packs_path}/{pack_name}/Final')
+finals_path = Path(f'/{Beatpack.packs_path}/{pack_name}/Final')
 dircheck(finals_path)
-short_path = Path(f'{packs_path}/{pack_name}/Short')
+short_path = Path(f'{Beatpack.packs_path}/{pack_name}/Short')
 dircheck(Path(f'{short_path}/Resources'))
-long_path = Path(f'{packs_path}/{pack_name}/Long')
+long_path = Path(f'{Beatpack.packs_path}/{pack_name}/Long')
 dircheck(Path(f'{long_path}/Resources'))
-pack_path = Path(f'{packs_path}/{pack_name}')
+pack_path = Path(f'{Beatpack.packs_path}/{pack_name}')
 
 # Input dataset
 beat_properties = []
@@ -47,7 +40,7 @@ lastdir = input('Input the BONUS beat directory path ("x" if none): ').strip("'\
 
 # Tag list
 tag_list = []
-for item in listdir_nohidden(f'{resources}/Tags'):
+for item in listdir_nohidden(f'{Beatpack.resources}/Tags'):
     tag_list.append(item)
 if len(tag_list) == 0:
     print('No tags in Tag folder!')
@@ -118,7 +111,7 @@ for paths in beat_paths:
     
     # Tag pick and time-stretch
     track_bpm = int(props[2])
-    tagmpeg = str(f'ffmpeg -i "{random.choice(tag_list)}" -filter:a "atempo={(18 / ((1/(track_bpm / 60))*48))}" newtag.wav')
+    tagmpeg = str(f'ffmpeg -i "{random.choice(tag_list)}" -filter:a "atempo={(18 / bpm_convert(track_bpm, 12))}" newtag.wav')
     subprocess.run(tagmpeg, shell = True, executable="/bin/bash")
     
     mp3mpeg = str(f'ffmpeg -i "{paths}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest:normalize=0 -ab 320k "{finals_path}/{new_name}"')
@@ -133,7 +126,7 @@ for temps in beat_paths:
     if temp_nr > video_beat_count:
         break
     bpm_import = tuple(beat_properties[temp_nr-1].split(';'))
-    temp_time = float((1/(int(bpm_import[2]) / 60))*160)
+    temp_time = bpm_convert(bpm_import[2], 40)
     time_list.append(temp_time)
     if Path(temps).suffix[1:] == 'mp3':
         mp3mpeg = str(f'ffmpeg -to {temp_time} -i "{temps}" -af "silenceremove=start_periods=1:start_duration=0:start_threshold=-50dB" -ab 320k "{short_path}/Resources/{temp_nr}.wav"')
@@ -285,7 +278,7 @@ pdf.cell(w=pdf.w - 25, txt=f'"{pack_name}" Beatpack Terms', align="C")
 pdf.output(f'{pack_path}/title.pdf')
 
 # merge
-pdfs = [f'{pack_path}/title.pdf', f'{resources}/terms.pdf', f'{pack_path}/list.pdf']
+pdfs = [f'{pack_path}/title.pdf', f'{Beatpack.resources}/terms.pdf', f'{pack_path}/list.pdf']
 merger = PdfMerger()
 for pdf in pdfs:
     merger.append(pdf)

@@ -2,10 +2,10 @@ from pathlib import Path
 import subprocess
 
 # Sets
-from beatstars_config import Beatstars, beatstars_folder
-watermark = Beatstars.watermark
-dir = Beatstars.export_directory
-mp3dir = Beatstars.mp3_directory
+from beatstars_config import Typebeat, beatstars_folder
+watermark = Typebeat.watermark
+dir = Typebeat.export_directory
+mp3dir = Typebeat.mp3_directory
 
 artist = input('nardo / future / lone: ')
 if artist == "nardo" or artist == "future" or artist == "lone":
