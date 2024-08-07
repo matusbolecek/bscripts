@@ -5,85 +5,95 @@ import os
 import subprocess
 import shutil
 import random
-import glob
-import re
 
 from beatstars_config import Typebeat, beatstars_folder
 from beatstars import listdir_nohidden
 
-# Inputs
-artists = ['nardo', 'future', 'southside', 'lone']
-artist = input(f"{' / '.join(artists)}: ")
-if artist in artists:
-    picdir = str(f'{Typebeat.pictures}/{artist}')
-else:
-    print('Not a valid option!')
-    sys.exit()
+def get_valid_artist():
+    artists = ['nardo', 'future', 'southside', 'lone']
+    while True:
+        artist = input(f"Choose an artist ({' / '.join(artists)}): ")
+        if artist in artists:
+            return artist, f'{Typebeat.pictures}/{artist}'
+        print('Not a valid option! Please try again.')
 
-rootdir = input('Input the root directory path: ').strip("'\"")
+def count_files(directory, condition):
+    return sum(1 for path in listdir_nohidden(directory) if condition(os.path.join(directory, path)))
 
-# Check if there is enough pictures
-count1 = 0
-count2 = 0
-for path in listdir_nohidden(picdir):
-    if os.path.isfile(os.path.join(picdir, path)):
-        count1 += 1
-for path in listdir_nohidden(rootdir):
-    if os.path.isdir(os.path.join(rootdir, path)):
-        count2 += 1
-if count1 < count2:
-    print(f'There is not enough pictures in the specified folder! {abs(count1-count2)} pictures missing!')
-    sys.exit()
+def check_picture_count(pic_dir, root_dir):
+    pic_count = count_files(pic_dir, os.path.isfile)
+    folder_count = count_files(root_dir, os.path.isdir)
+    if pic_count < folder_count:
+        print(f'Not enough pictures in the specified folder! {folder_count - pic_count} pictures missing!')
+        sys.exit(1)
 
-# Main
-num = 1
-for folder in listdir_nohidden(rootdir):
-    folder_path = Path(folder)
+def process_folder(folder_path, picdir, artist, num, total):
+    folder_path = Path(folder_path)
+    
+    # Remove current.wav files
+    for file in folder_path.glob('*Current.wav'):
+        file.unlink()
 
+    # Find master file
+    master_files = list(folder_path.glob('*Master.wav'))
+    if not master_files:
+        print(f"No master file found in {folder_path}")
+        return
+    master_file = master_files[0]
+
+    # Zip stems
+    print(f'Zipping file {num}/{total}')
+    stems_folder = folder_path / 'Stems'
+    stems_folder.mkdir(exist_ok=True)
     for file in folder_path.iterdir():
-        if fnmatch.fnmatch(file.name, '*Current.wav'):
-            os.remove(file)
+        if 'Master.wav' not in file.name and file.is_file():
+            shutil.move(str(file), str(stems_folder))
 
-    # Set master file
-    for file in folder_path.iterdir():
-        if fnmatch.fnmatch(file.name, '*Master.wav'):
-            master = file.name
-            master_path = file
+    subprocess.run(['7z', 'a', '-tzip', '-r', 'stems.zip', 'Stems/', '-x!*.DS_Store', '-x!__MACOSX*'], 
+                   cwd=str(folder_path), stdout=subprocess.DEVNULL)
+    shutil.rmtree(stems_folder)
+    zip_name = master_file.stem.replace('_Master', '_Stems') + '.zip'
+    (folder_path / 'stems.zip').rename(folder_path / zip_name)
+    print('Zipping done!')
 
-    # Zip 
-    print(f'Zipping file {num}/{count2}')
-    os.chdir(folder)
-    os.mkdir('Stems')       
-    excluded_string = "Master.wav"
-    files = os.listdir(folder_path)
-    stemsfolder = str(f'{folder_path}/Stems')
-    for file in files:
-        if excluded_string not in file:
-            file_path = os.path.join(folder_path, file)
-            shutil.move(file_path, stemsfolder)
-
-    subprocess.run('7z a -tzip -r stems.zip Stems/ -x!*.DS_Store -x!__MACOSX*', shell=True, stdout = subprocess.DEVNULL)
-    shutil.rmtree(stemsfolder)
-    zipname = master.replace('_Master.wav', '_Stems.zip')
-    os.rename('stems.zip', zipname)
-    print('Done!')
-
+    # Render video
     picture = random.choice(os.listdir(picdir))
-    picture_path = str(f'{picdir}/{picture}')
+    picture_path = os.path.join(picdir, picture)
+    print(f'Rendering video {num}/{total}')
+    export_name = os.path.join(Typebeat.export_directory, f"{master_file.stem}.mp4")
+    ffmpeg_cmd = [
+        'ffmpeg', '-threads', '0', '-framerate', '24', '-loop', '1',
+        '-i', picture_path, '-i', str(Typebeat.watermark), '-i', str(master_file),
+        '-filter_complex', "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2",
+        '-c:a', 'aac', '-c:v', 'h264_videotoolbox', '-shortest', export_name
+    ]
+    subprocess.run(ffmpeg_cmd, check=True)
+    shutil.move(picture_path, str(folder_path))
+    print('Video rendering done!')
 
-    # Render
-    print(f'Rendering file {num}/{count2}')
-    export_name = (f"'{Typebeat.export_directory}/{Path(master).stem}.mp4'")
-    ffmpeg=str(f'ffmpeg -threads 0 -framerate 24 -loop 1 -i "{picture_path}" -i "{Typebeat.watermark}" -i "{master_path}" -filter_complex "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:a aac -c:v h264_videotoolbox -shortest {export_name}')
-    subprocess.run(ffmpeg, shell = True, executable="/bin/bash") # , stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT
+    # Render MP3
+    print(f'Rendering MP3 {num}/{total}')
+    mp3_name = os.path.join(Typebeat.mp3_directory, f"{master_file.stem} ({artist}).mp3")
+    subprocess.run(['ffmpeg', '-i', str(master_file), '-ab', '320k', mp3_name], 
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    print('MP3 rendering done!')
 
-    shutil.move(picture_path, folder_path)
-    print('Done!')
+if __name__ == "__main__":
+    artist, picdir = get_valid_artist()
+    
+    # Improved input handling for paths with escaped spaces
+    rootdir = input('Input the root directory path: ')
+    rootdir = rootdir.strip("'\"")  # Remove any surrounding quotes
+    rootdir = rootdir.replace("\\ ", " ")  # Replace escaped spaces with actual spaces
+    rootdir = os.path.expanduser(rootdir)  # Expand user directory if present (e.g., ~)
+    rootdir = os.path.abspath(rootdir)  # Convert to absolute path
+    
+    if not os.path.exists(rootdir):
+        print(f"The directory '{rootdir}' does not exist.")
+        sys.exit(1)
 
-    print(f'Rendering MP3 {num}/{count2}')
-    mp3_name = (f"'{Typebeat.mp3_directory}/{Path(master).stem} ({artist}).mp3'")
-    mp3mpeg = str(f'ffmpeg -i "{master_path}" -ab 320k {mp3_name}')
-    subprocess.run(mp3mpeg, shell = True, executable="/bin/bash", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
-    print('Done!')
+    check_picture_count(picdir, rootdir)
 
-    num += 1
+    total_folders = sum(1 for _ in listdir_nohidden(rootdir))
+    for num, folder in enumerate(listdir_nohidden(rootdir), 1):
+        process_folder(os.path.join(rootdir, folder), picdir, artist, num, total_folders)
