@@ -6,10 +6,12 @@ import sys
 from pathlib import Path
 from typing import List, Dict
 import fnmatch
+import shutil
 
-from beatstars_config import Cookup, beatstars_folder
+from beatstars_config import Cookup, beatstars_folder, Management
 from video_picker import generator
 from beatstars import listdir_nohidden, bpm_convert, dircheck, silence_read
+from beat_management import BeatManager
 
 def write_json(path: str) -> None:
     # Write a default JSON file with video properties
@@ -51,6 +53,7 @@ def process_folder(folder_path: Path, rootdir: str) -> None:
     process_preview(file_list, props, final_directory)
     combine_videos(final_directory, rootdir, props)
 
+
 def process_intro(file_list: List[Path], props: Dict, final_directory: Path) -> None:
     # Process the intro part of the video
     audio_start = silence_read(file_list[1])
@@ -63,9 +66,9 @@ def process_intro(file_list: List[Path], props: Dict, final_directory: Path) -> 
     tag_command = f'''ffmpeg -i "{tag_file}" -filter:a "atempo={(18 / bpm_convert(props["video_bpm"], 12))}" "{final_directory}/tag.wav"'''
     subprocess.run(tag_command, shell=True, executable="/bin/bash")
 
-    generator(f'{Cookup.cookup_materials}/cut_clips/future', 1, final_directory, 8)
+    generator(f'{Cookup.cookup_alt_materials}/cut_clips/future', 1, final_directory, 8)
     
-    intro_command = f'''ffmpeg -i "{final_directory}/1.mp4" -i "{Cookup.cookup_materials}/overlay.mov" -i "{Cookup.cookup_materials}/intro.png" -i "{final_directory}/audio.aac" -i "{final_directory}/tag.wav" \
+    intro_command = f'''ffmpeg -i "{final_directory}/1.mp4" -i "{Cookup.cookup_alt_materials}/overlay.mov" -i "{Cookup.cookup_materials}/intro.png" -i "{final_directory}/audio.aac" -i "{final_directory}/tag.wav" \
     -filter_complex "[0:v]boxblur=40,scale=2560x1440,setsar=1[bg]; \
     [0:v]scale=1440:1440:force_original_aspect_ratio=decrease[fg]; \
     [bg][fg]overlay=x=(W-w)/2:y=(H-h)/2[base]; \
@@ -104,6 +107,37 @@ def process_preview(file_list: List[Path], props: Dict, final_directory: Path) -
     
     subprocess.run(preview_command, shell=True, executable="/bin/bash")
 
+def save_preview(file_list: List[Path], final_directory: Path):
+    final_directory = f'{Cookup.cookup_exports}/social/{final_directory.name}'
+    dircheck(final_path)
+    shutil.copyfile(file_list[1], final_directory)
+
+def update_tutorial_made_flag(beat_name: str) -> None:
+    # Update the tutorial_made flag in the database for the given beat name.
+    beat_manager = BeatManager(Management.database_path_beats)
+    all_beats = beat_manager.get_all_beats()
+    
+    for beat in all_beats:
+        if beat[1].lower() == beat_name.lower():  # Compare beat names case-insensitively
+            beat_manager.update_tutorial_flag(beat[0])  # Update the flag
+            print(f"Updated tutorial_made flag for beat: {beat_name}")
+            break
+    else:
+        print(f"Beat not found in database: {beat_name}")
+    
+    beat_manager.close()
+
+def run_ffmpeg_and_update_db(command: str, beat_name: str) -> None:
+    # Run the ffmpeg command and update the database only if successful.
+    try:
+        subprocess.run(command, shell=True, executable="/bin/bash", check=True)
+        print("Video rendering completed successfully.")
+        
+        update_tutorial_made_flag(beat_name)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred during video rendering: {e}")
+        print("Database not updated due to rendering failure.")
+
 def combine_videos(final_directory: Path, root_folder: Path, props: Dict) -> None:
     # Stretch the riser to match tempo of track
     tag_command = f'''ffmpeg -i "{Cookup.cookup_materials}/riser_16bar.wav" -filter:a "atempo={(24 / bpm_convert(props["video_bpm"], 16))}" "{final_directory}/riser_stretched.wav"'''
@@ -113,9 +147,10 @@ def combine_videos(final_directory: Path, root_folder: Path, props: Dict) -> Non
     combine_command = f'''ffmpeg -i {final_directory}/first.mov -i {final_directory}/second.mov -i {final_directory}/third.mov -i "{final_directory}/riser_stretched.wav" \
     -filter_complex "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[outv][outa]; \
     [outa][3:a]amix=inputs=2:duration=first:weights=1 1:normalize=0[finalaudio]" \
-    -map "[outv]" -map "[finalaudio]" -c:v libx264 -c:a aac -b:a 320k "{root_folder}/finals/{final_directory.name}.mov"'''
+    -map "[outv]" -map "[finalaudio]" -c:v libx264 -c:a aac -b:a 320k "{Cookup.cookup_exports}/export/{final_directory.name}.mov"'''
     
-    subprocess.run(combine_command, shell=True, executable="/bin/bash")
+    # Run the ffmpeg command and update the database only if successful
+    run_ffmpeg_and_update_db(combine_command, final_directory.name)
 
 def main(rootdir: str) -> None:
     # Main function to process all folders in the import directory
@@ -126,7 +161,6 @@ def main(rootdir: str) -> None:
         sys.exit(1)
 
     dircheck(f'{rootdir}/export')
-    dircheck(f'{rootdir}/finals')
 
     for folder in listdir_nohidden(import_folder):
         process_folder(Path(folder), rootdir)

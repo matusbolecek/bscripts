@@ -184,11 +184,17 @@ class BeatManager:
     def close(self):
         self.conn.close()
 
+    def search_beats(self, name):
+        self.cursor.execute('''
+        SELECT * FROM beats WHERE LOWER(name) LIKE ?
+        ''', (f'%{name.lower()}%',))
+        return self.cursor.fetchall()
+
 def main():
     manager = BeatManager()
     
     print("Welcome to the Beat Management System!")
-    print("Available commands: list, add_properties, add_filename, remove, exit")
+    print("Available commands: list, add_properties, add_filename, remove, add_links, search, exit")
 
     while True:
         command = input("Enter command: ").lower()
@@ -203,10 +209,21 @@ def main():
             manager.add_beat_by_properties()
         elif command == "add_filename":
             manager.add_beat_by_filename()
+        elif command == "add_links":
+            manager.add_links_interactively()
         elif command == "remove":
             beat_id = int(input("Enter the ID of the beat to remove: "))
             manager.remove_beat(beat_id)
             print(f"Beat with ID {beat_id} removed successfully.")
+        elif command == "search":
+            search_term = input("Enter the name of the beat to search for: ")
+            results = manager.search_beats(search_term)
+            if results:
+                print("Search results:")
+                for beat in results:
+                    print(beat)
+            else:
+                print("No beats found matching that name.")
         else:
             print("Invalid command. Please try again.")
 
