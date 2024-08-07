@@ -8,6 +8,7 @@ import random
 
 from beatstars_config import Typebeat, beatstars_folder
 from beatstars import listdir_nohidden
+from beat_management import BeatManager
 
 def get_valid_artist():
     artists = ['nardo', 'future', 'southside', 'lone']
@@ -27,7 +28,7 @@ def check_picture_count(pic_dir, root_dir):
         print(f'Not enough pictures in the specified folder! {folder_count - pic_count} pictures missing!')
         sys.exit(1)
 
-def process_folder(folder_path, picdir, artist, num, total):
+def process_folder(folder_path, picdir, artist, num, total, beatlist):
     folder_path = Path(folder_path)
     
     # Remove current.wav files
@@ -78,8 +79,17 @@ def process_folder(folder_path, picdir, artist, num, total):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     print('MP3 rendering done!')
 
+    # Write filename to global filename list
+    beatlist.append(master_file.stem)
+
+def data_write(beatlist):
+    manager = BeatManager()
+    manager.add_beats_from_filenames(beatlist)
+    manager.close()
+
 if __name__ == "__main__":
     artist, picdir = get_valid_artist()
+    beat_names = []
     
     # Improved input handling for paths with escaped spaces
     rootdir = input('Input the root directory path: ')
@@ -96,4 +106,6 @@ if __name__ == "__main__":
 
     total_folders = sum(1 for _ in listdir_nohidden(rootdir))
     for num, folder in enumerate(listdir_nohidden(rootdir), 1):
-        process_folder(os.path.join(rootdir, folder), picdir, artist, num, total_folders)
+        process_folder(os.path.join(rootdir, folder), picdir, artist, num, total_folders, beat_names)
+
+    data_write(beat_names)
