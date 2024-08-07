@@ -1,40 +1,41 @@
-from pathlib import Path
 import random
-import glob
-import re
 import subprocess
-import os
+from pathlib import Path
+from typing import Union, List
 
 from beatstars import listdir_nohidden
+from beatstars_config import Videopicker, beatstars_folder
 
-def generator(video_directory, output_count, render_path, video_count):
-    video_list = []
-    for item in listdir_nohidden(video_directory):
-        video_list.append(item)
-
-    output_number = 1
-    for i in range(output_count):
-        args = str('')
-        for i in range(video_count):
-            num = random.randint(0, len(video_list))
-            os.chdir(render_path)
-            f = open("vidlist.txt", "a+") 
-            f.write(f'file {video_list[num]}\n')
-            f.close()
-
-        render_ffmpeg = str(f'ffmpeg -f concat -safe 0  -i vidlist.txt -c copy "{render_path}/{output_number}.mp4"')
-        subprocess.run(render_ffmpeg, shell = True, executable="/bin/bash")
-        output_number += 1
-        os.remove('vidlist.txt')
+def generator(video_directory: Union[str, Path], output_count: int, render_path: Path, video_count: int) -> None:
+    video_list = [Path(item) for item in listdir_nohidden(video_directory)]
+    
+    for output_number in range(1, output_count + 1):
+        video_list_file = render_path / "vidlist.txt"
+        output_file = render_path / f"{output_number}.mp4"
+        
+        # Create video list file
+        selected_videos = random.sample(video_list, video_count)
+        with video_list_file.open('w') as f:
+            for video in selected_videos:
+                f.write(f'file {video}\n')
+        
+        # Render video
+        render_ffmpeg = f'ffmpeg -f concat -safe 0 -i {video_list_file} -c copy {output_file}'
+        try:
+            subprocess.run(render_ffmpeg, shell=True, check=True, executable="/bin/bash")
+        except subprocess.CalledProcessError as e:
+            print(f"Error rendering video {output_number}: {e}")
+        
+        # Clean up
+        video_list_file.unlink()
 
 if __name__ == "__main__":
-
-    from beatstars_config import Videopicker, beatstars_folder
-
     pack_name = input('What is the pack name? ')
-    viddir = Videopicker.video_folder.strip("'\"")
+    viddir = Path(Videopicker.video_folder.strip("'\""))
     outputs = int(input('How many videos should be rendered? '))
-    pack_path = Path(f'{Videopicker.packs_folder}/{pack_name}')
-    finals_path = Path(f'{Videopicker.packs_folder}/{pack_name}/vids')
-    finals_path.mkdir(parents=True)
+    
+    pack_path = Path(Videopicker.packs_folder) / pack_name
+    finals_path = pack_path / "vids"
+    finals_path.mkdir(parents=True, exist_ok=True)
+    
     generator(viddir, outputs, finals_path, 5)

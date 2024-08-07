@@ -14,8 +14,8 @@ from beatstars_config import Beatpack, beatstars_folder
 from beatstars import listdir_nohidden, bpm_convert, dircheck
 
 # BPM checking to prevent wrong inputs
-bpmcheck_query = input('Enable bpm checking? (Y/n)')
-if bpmcheck_query == 'N' or bpmcheck_query == 'n':
+bpmcheck_query = input('Enable bpm checking? (Y/n)').strip().lower()
+if bpmcheck_query == 'n':
     disable_bpm_check = 1
 else:
     disable_bpm_check = 0
