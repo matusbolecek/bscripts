@@ -84,14 +84,14 @@ def process_intro(file_list: List[Path], props: Dict, final_directory: Path) -> 
 def process_main_video(file_list: List[Path], props: Dict, final_directory: Path) -> None:
     # Process the main part of the video
     main_command = f'''ffmpeg -ss {props["cookup_start"]} -to {props["cookup_end"]} -i "{file_list[0]}" \
-    -filter_complex "[0:v]drawtext=fontfile='{Cookup.cookup_materials}/font.ttf': \
+    -filter_complex "[0:v]fps=60,drawtext=fontfile='{Cookup.cookup_materials}/font.ttf': \
     text='{props["loop_text"]}': \
     x=(w-text_w)/2: \
     y=h-(text_h*2): \
     fontsize=64: \
     fontcolor=white: \
     alpha='if(lt(t,5),0,if(lt(t,6),(t-5)/1,if(lt(t,14),1,if(lt(t,15),(1-(t-14))/1,0))))'[v]" \
-    -map "[v]" -map 0:a -c:v h264 -c:a aac -b:a 320k "{final_directory}/second.mov"'''
+    -map "[v]" -map 0:a -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 320k "{final_directory}/second.mov"'''
     
     subprocess.run(main_command, shell=True, executable="/bin/bash")
 
@@ -102,8 +102,10 @@ def process_preview(file_list: List[Path], props: Dict, final_directory: Path) -
     preview_end = audio_start + bpm_convert(props["video_bpm"], int(props["preview_length_bars"]))
 
     preview_command = f'''ffmpeg -ss {audio_start} -to {preview_end} -i "{file_list[1]}" -i "{Cookup.cookup_materials}/outro.png" \
-    -filter_complex "[0:v]lut3d='{lut_file}'[video];[video][1:v]overlay=0:0" \
-    -c:v h264 -c:a copy "{final_directory}/third.mov"'''
+    -filter_complex "[0:v]fps=60,lut3d='{lut_file}'[video];[video][1:v]overlay=0:0" \
+    -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 320k "{final_directory}/third.mov"'''
+    
+    subprocess.run(preview_command, shell=True, executable="/bin/bash")
     
     subprocess.run(preview_command, shell=True, executable="/bin/bash")
 
@@ -147,11 +149,10 @@ def combine_videos(final_directory: Path, root_folder: Path, props: Dict) -> Non
     combine_command = f'''ffmpeg -i {final_directory}/first.mov -i {final_directory}/second.mov -i {final_directory}/third.mov -i "{final_directory}/riser_stretched.wav" \
     -filter_complex "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[outv][outa]; \
     [outa][3:a]amix=inputs=2:duration=first:weights=1 1:normalize=0[finalaudio]" \
-    -map "[outv]" -map "[finalaudio]" -c:v libx264 -c:a aac -b:a 320k "{Cookup.cookup_exports}/export/{final_directory.name}.mov"'''
+    -map "[outv]" -map "[finalaudio]" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 320k "{Cookup.cookup_exports}/export/{final_directory.name}.mov"'''
     
-    # Run the ffmpeg command and update the database only if successful
     run_ffmpeg_and_update_db(combine_command, final_directory.name)
-
+    
 def main(rootdir: str) -> None:
     # Main function to process all folders in the import directory
     os.chdir(rootdir)
