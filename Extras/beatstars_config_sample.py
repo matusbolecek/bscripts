@@ -26,3 +26,7 @@ class Cookup:
 class Management:
     database_path_beats = f'' # Path to the database for beats
     database_path_loops = f''
+
+class Publisher:
+    resources_path = f'' # Path to the publisher data
+    dropbox_token = ''

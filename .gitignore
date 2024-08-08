@@ -1,2 +1,4 @@
 .DS_Store
 beatstars_config.py
+credentials.json
+token.json

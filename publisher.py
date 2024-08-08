@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 from typing import Dict, List
+from dropbox_integration import process_files_with_dropbox
 
 from beatstars_config import Publisher
 
@@ -19,7 +20,7 @@ def load_config(script_dir: str, config_file: str = f"{Publisher.resources_path}
         print(f"Error: {config_path} is not a valid JSON file.")
         return {}
 
-def generate_youtube_data(config: Dict, beatname: str, filename: str) -> Dict:
+def generate_youtube_data(config: Dict, beatname: str, download_link: str) -> Dict:
     return {
         "Text": config.get("YT_desc", ""),
         "Year": None,
@@ -30,7 +31,7 @@ def generate_youtube_data(config: Dict, beatname: str, filename: str) -> Dict:
         "Queue Schedule": "QLAST",
         "Post Type": "SHORTS",
         "Video Title": f"{config.get('YT_title', '')} \"{beatname}\"",
-        "Video URL": f"{config.get('Folder_link', '')}{filename}{config.get('rlkey', '')}&raw=1",
+        "Video URL": download_link,
         "Thumbnail URL": None,
         "Subtitles URL": None,
         "Subtitles Language": None,
@@ -45,7 +46,7 @@ def generate_youtube_data(config: Dict, beatname: str, filename: str) -> Dict:
         "Made For Kids": "No"
     }
 
-def generate_instagram_data(config: Dict, filename: str) -> Dict:
+def generate_instagram_data(config: Dict, download_link: str) -> Dict:
     return {
         "Text": config.get("IG_Text", ""),
         "Link": None,
@@ -59,7 +60,7 @@ def generate_instagram_data(config: Dict, filename: str) -> Dict:
         "Post Type": "REELS",
         "Image URL": None,
         "Alt Texts": None,
-        "Video URL": f"{config.get('Folder_link', '')}{filename}{config.get('rlkey', '')}&raw=1",
+        "Video URL": download_link,
         "No. of Repetitions (From 1-10 OR 'FOREVER')": None,
         "Time Gap between Repetitions (Hours: From 1-24 OR 'WEEKLY' OR 'MONTHLY' OR 'YEARLY')": None,
         "Google Business Profile Type": None,
@@ -74,7 +75,7 @@ def generate_instagram_data(config: Dict, filename: str) -> Dict:
         "Document Title": None
     }
 
-def generate_tiktok_data(config: Dict, filename: str) -> Dict:
+def generate_tiktok_data(config: Dict, download_link: str) -> Dict:
     return {
         "Text": config.get("TT_Text", ""),
         "Link": None,
@@ -88,7 +89,7 @@ def generate_tiktok_data(config: Dict, filename: str) -> Dict:
         "Post Type": "VIDEO",
         "Image URL": None,
         "Alt Texts": None,
-        "Video URL": f"{config.get('Folder_link', '')}{filename}{config.get('rlkey', '')}&raw=1",
+        "Video URL": download_link,
         "No. of Repetitions (From 1-10 OR 'FOREVER')": None,
         "Time Gap between Repetitions (Hours: From 1-24 OR 'WEEKLY' OR 'MONTHLY' OR 'YEARLY')": None,
         "Google Business Profile Type": None,
@@ -137,7 +138,6 @@ def process_files(folder_path: str, export_folder: str, script_dir: str):
     instagram_data = []
     tiktok_data = []
 
-    # Remove any surrounding quotes from the folder_path
     folder_path = folder_path.strip("'\"")
 
     if not os.path.exists(folder_path):
@@ -145,23 +145,41 @@ def process_files(folder_path: str, export_folder: str, script_dir: str):
         return
 
     try:
-        for filename in os.listdir(folder_path):
-            if filename.endswith(('.mp4', '.mov')):
-                beatname, platform = filename.rsplit('.', 1)[0].rsplit('_', 1)
-                
-                if platform.lower() == 'yt':
-                    youtube_data.append(generate_youtube_data(config, beatname, filename))
-                elif platform.lower() == 'ig':
-                    instagram_data.append(generate_instagram_data(config, filename))
-                elif platform.lower() == 'tt':
-                    tiktok_data.append(generate_tiktok_data(config, filename))
+        dropbox_folder_name = "VideoUploads"  # You can change this name as needed
+        file_generator = process_files_with_dropbox(folder_path, dropbox_folder_name)
+        
+        if file_generator is None:
+            print("Error: Failed to initialize Dropbox upload process.")
+            return
+
+        for filename, download_link in file_generator:
+            if download_link is None:
+                print(f"Warning: Failed to upload {filename}. Skipping this file.")
+                continue
+
+            beatname, platform = filename.rsplit('.', 1)[0].rsplit('_', 1)
+            
+            if platform.lower() == 'yt':
+                youtube_data.append(generate_youtube_data(config, beatname, download_link))
+            elif platform.lower() == 'ig':
+                instagram_data.append(generate_instagram_data(config, download_link))
+            elif platform.lower() == 'tt':
+                tiktok_data.append(generate_tiktok_data(config, download_link))
+            else:
+                print(f"Warning: Unknown platform '{platform}' for file {filename}. Skipping this file.")
+
     except Exception as e:
         print(f"Error processing files in '{folder_path}': {str(e)}")
         return
 
-    save_to_csv(youtube_data, 'youtube', export_folder, script_dir)
-    save_to_csv(instagram_data, 'instagram', export_folder, script_dir)
-    save_to_csv(tiktok_data, 'tiktok', export_folder, script_dir)
+    if youtube_data:
+        save_to_csv(youtube_data, 'youtube', export_folder, script_dir)
+    if instagram_data:
+        save_to_csv(instagram_data, 'instagram', export_folder, script_dir)
+    if tiktok_data:
+        save_to_csv(tiktok_data, 'tiktok', export_folder, script_dir)
+
+    print("File processing complete.")
 
 def get_valid_folder_path() -> str:
     while True:

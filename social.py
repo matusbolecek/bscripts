@@ -63,10 +63,10 @@ def create_video(video_path, picture_path, output_path, silence_end, intro_delay
     try:
         temp_output = f"{output_path}_temp.mp4"
         filter_complex = (
-            "[0:v]scale=-1:1440,perspective=0:0:W+250:-250:0:H:W+250:H+250,colorlevels=rimin=0.058:gimin=0.058:bimin=0.058:rimax=0.9:gimax=0.9:bimax=0.9,colorbalance=rs=0.1:gs=0.1:bs=0.1:rm=0.1:gm=0.1:bm=0.1:rh=0.1:gh=0.1:bh=0.1[v];"
+            "[0:v]scale=-1:1440:flags=lanczos,fps=60,perspective=0:0:W+250:-250:0:H:W+250:H+250[v];"
             "[1:v][v]overlay=-325:480,hue=h={0}"
         ).format(random.randint(-360, 360))
-        
+
         ffmpeg_command = [
             "ffmpeg",
             "-ss", f"{silence_end + intro_delay - 0.1}",
@@ -76,8 +76,9 @@ def create_video(video_path, picture_path, output_path, silence_end, intro_delay
             "-filter_complex", filter_complex,
             "-c:v", "libx264",
             "-crf", "17",
+            "-preset", "fast",
             "-b:a", "320k",
-            "-preset", "slow",
+            "-r", "60",
             temp_output
         ]
         
