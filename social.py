@@ -5,9 +5,10 @@ import random
 from pathlib import Path
 import sys
 import shlex
+
 from beat_management import BeatManager, Beat
 
-def process_video(video_path, beat_info, resource_folder):
+def process_video(video_path, beat_info, resource_folder, export_folder):
     # Extract necessary information from beat_info
     beat_name = beat_info[1]
     bpm = beat_info[4]
@@ -21,7 +22,7 @@ def process_video(video_path, beat_info, resource_folder):
     
     # Process each picture
     for picture_path in get_resource_files(resource_folder):
-        output_path = f"{os.path.dirname(video_path)}/{beat_name}_{Path(picture_path).stem}.mp4"
+        output_path = export_folder / f"{beat_name}_{Path(picture_path).stem}.mp4"
         if create_video(video_path, picture_path, output_path, silence_end, intro_delay, beat_time):
             print(f"Successfully created: {output_path}")
         else:
@@ -62,7 +63,7 @@ def create_video(video_path, picture_path, output_path, silence_end, intro_delay
     try:
         temp_output = f"{output_path}_temp.mp4"
         filter_complex = (
-            "[0:v]scale=-1:1440,perspective=0:0:W+250:-250:0:H:W+250:H+250[v];"
+            "[0:v]scale=-1:1440,perspective=0:0:W+250:-250:0:H:W+250:H+250,colorlevels=rimin=0.058:gimin=0.058:bimin=0.058:rimax=0.9:gimax=0.9:bimax=0.9,colorbalance=rs=0.1:gs=0.1:bs=0.1:rm=0.1:gm=0.1:bm=0.1:rh=0.1:gh=0.1:bh=0.1[v];"
             "[1:v][v]overlay=-325:480,hue=h={0}"
         ).format(random.randint(-360, 360))
         
@@ -109,10 +110,14 @@ def main():
     rootdir = input('Input the root directory path: ').strip("'\"")
     video_folder = Path(f'{rootdir}/videos')
     resource_folder = Path(f'{rootdir}/resources')
+    export_folder = Path(f'{rootdir}/export')
 
     if not video_folder.exists() or not resource_folder.exists():
         print('Video folder or Resource folder does not exist!')
         sys.exit()
+
+    # Create export folder if it doesn't exist
+    export_folder.mkdir(exist_ok=True)
 
     beat_manager = BeatManager()
 
@@ -122,7 +127,7 @@ def main():
             if video_file:
                 beat_info = beat_manager.search_beats(folder.name)
                 if beat_info:
-                    process_video(video_file, beat_info[0], resource_folder)
+                    process_video(video_file, beat_info[0], resource_folder, export_folder)
                     beat_manager.update_social_media_video_flag(beat_info[0][0])
                     print(f"Updated social media flag for: {folder.name}")
                 else:
