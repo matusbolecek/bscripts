@@ -184,10 +184,19 @@ class BeatManager:
     def close(self):
         self.conn.close()
 
-    def search_beats(self, name):
-        self.cursor.execute('''
-        SELECT * FROM beats WHERE LOWER(name) LIKE ?
-        ''', (f'%{name.lower()}%',))
+    def search_beats(self, query, search_by='name', has_pack=False):
+        if search_by == 'id':
+            self.cursor.execute('SELECT * FROM beats WHERE id = ?', (query,))
+        elif search_by == 'name':
+            self.cursor.execute('SELECT * FROM beats WHERE LOWER(name) LIKE ?', (f'%{query.lower()}%',))
+        elif search_by == 'pack':
+            if has_pack:
+                self.cursor.execute('SELECT * FROM beats WHERE pack IS NOT NULL AND pack != ""')
+            else:
+                self.cursor.execute('SELECT * FROM beats WHERE LOWER(pack) LIKE ?', (f'%{query.lower()}%',))
+        else:
+            raise ValueError("Invalid search_by parameter")
+        
         return self.cursor.fetchall()
 
 def main():
@@ -216,14 +225,22 @@ def main():
             manager.remove_beat(beat_id)
             print(f"Beat with ID {beat_id} removed successfully.")
         elif command == "search":
-            search_term = input("Enter the name of the beat to search for: ")
-            results = manager.search_beats(search_term)
+            query = input("Enter search query: ")
+            search_by = input("Search by (name/id/pack) [default: name]: ").lower() or 'name'
+            
+            if search_by == 'pack':
+                has_pack = input("Search for beats with any pack? (y/n): ").lower() == 'y'
+            else:
+                has_pack = False
+
+            results = manager.search_beats(query, search_by, has_pack)
+            
             if results:
                 print("Search results:")
                 for beat in results:
                     print(beat)
             else:
-                print("No beats found matching that name.")
+                print("No beats found matching that criteria.")
         else:
             print("Invalid command. Please try again.")
 
