@@ -15,6 +15,7 @@ class Beat:
     tutorial_made: bool = False
     social_media_video_made: bool = False
     link: Optional[str] = None
+    typebeat_uploaded: bool = False
 
 class BeatManager:
     def __init__(self, db_name):
@@ -34,7 +35,8 @@ class BeatManager:
          pack TEXT,
          tutorial_made BOOLEAN,
          social_media_video_made BOOLEAN,
-         link TEXT)
+         link TEXT,
+         typebeat_uploaded BOOLEAN)
         ''')
         self.conn.commit()
 
@@ -48,14 +50,16 @@ class BeatManager:
             self.cursor.execute('ALTER TABLE beats ADD COLUMN social_media_video_made BOOLEAN DEFAULT 0')
         if 'link' not in columns:
             self.cursor.execute('ALTER TABLE beats ADD COLUMN link TEXT')
+        if 'typebeat_uploaded' not in columns:
+            self.cursor.execute('ALTER TABLE beats ADD COLUMN typebeat_uploaded BOOLEAN DEFAULT 0')
         self.conn.commit()
 
     def add_beat(self, beat: Beat):
         self.cursor.execute('''
-        INSERT INTO beats (name, collaborators, key, tempo, pack, tutorial_made, social_media_video_made, link)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO beats (name, collaborators, key, tempo, pack, tutorial_made, social_media_video_made, link, typebeat_uploaded)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (beat.name, beat.collaborators, beat.key, beat.tempo, beat.pack, 
-              beat.tutorial_made, beat.social_media_video_made, beat.link))
+              beat.tutorial_made, beat.social_media_video_made, beat.link, beat.typebeat_uploaded))
         self.conn.commit()
 
     def remove_beat(self, beat_id):
@@ -81,6 +85,10 @@ class BeatManager:
 
     def update_link(self, beat_id, link):
         self.cursor.execute('UPDATE beats SET link = ? WHERE id = ?', (link, beat_id))
+        self.conn.commit()
+
+    def update_typebeat_uploaded(self, beat_id, typebeat_uploaded=True):
+        self.cursor.execute('UPDATE beats SET typebeat_uploaded = ? WHERE id = ?', (typebeat_uploaded, beat_id))
         self.conn.commit()
 
     def get_all_beats(self):
@@ -171,8 +179,10 @@ class BeatManager:
         link = input("Enter link (or press Enter for None): ")
         if not link:
             link = None
+        typebeat_uploaded = input("Is this beat uploaded to Typebeat? (y/n): ").lower() == 'y'
 
-        beat = Beat(name=name, collaborators=collaborators, key=key, tempo=tempo, pack=pack, link=link)
+        beat = Beat(name=name, collaborators=collaborators, key=key, tempo=tempo, 
+                    pack=pack, link=link, typebeat_uploaded=typebeat_uploaded)
         self.add_beat(beat)
         print("Beat added successfully.")
 
@@ -270,7 +280,7 @@ def main():
 
 def manage_items(manager, item_type):
     print(f"{item_type} Management")
-    print("Available commands: list, add_properties, add_filename, add_file_list, remove, add_links, search, back")
+    print("Available commands: list, add_properties, add_filename, add_file_list, remove, add_links, search, update_typebeat, back")
 
     while True:
         command = input(f"Enter {item_type.lower()} command: ").lower()
@@ -316,6 +326,11 @@ def manage_items(manager, item_type):
                     print(item)
             else:
                 print(f"No {item_type.lower()}s found matching that criteria.")
+        elif command == "update_typebeat":
+            item_id = int(input(f"Enter the ID of the {item_type.lower()} to update: "))
+            typebeat_uploaded = input("Has this beat been uploaded to Typebeat? (y/n): ").lower() == 'y'
+            manager.update_typebeat_uploaded(item_id, typebeat_uploaded)
+            print(f"{item_type} with ID {item_id} updated successfully.")
         else:
             print("Invalid command. Please try again.")
 
