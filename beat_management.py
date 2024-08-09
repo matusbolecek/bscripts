@@ -1,6 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 from typing import Optional, List
+import os
 
 from beatstars_config import Management
 
@@ -199,6 +200,53 @@ class BeatManager:
         
         return self.cursor.fetchall()
 
+    @staticmethod
+    def parse_loop_filename(filename: str) -> Beat:
+        # Remove file extension
+        name_parts = filename.rsplit('.', 1)[0].split()
+        
+        # Extract collaborators
+        collaborators = "@matejcikbeats"
+        if 'x' in name_parts:
+            x_index = name_parts.index('x')
+            collaborators_parts = name_parts[x_index-1:]
+            collaborators = ', '.join([part.strip('@') for part in collaborators_parts if part != 'x'])
+            name_parts = name_parts[:x_index-1]
+        elif name_parts[-1].startswith('@'):
+            collaborators = name_parts[-1]
+            name_parts = name_parts[:-1]
+        
+        # Extract tempo and key
+        tempo = int(name_parts[-2])
+        key = name_parts[-1]
+        
+        # Extract name
+        name = ' '.join(name_parts[:-2])
+        
+        return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
+
+    def add_loops_from_filenames(self, filenames: List[str]):
+        for filename in filenames:
+            loop = self.parse_loop_filename(filename)
+            self.add_beat(loop)  # Assuming you're using the same add_beat method for loops
+        print(f"Added {len(filenames)} loops to the database.")
+
+    def add_beats_from_file(self, file_path: str):
+        with open(file_path, 'r') as file:
+            filenames = file.read().splitlines()
+        
+        added_count = 0
+        for filename in filenames:
+            if filename.strip():  # Skip empty lines
+                if self.conn.database == Management.database_path_beats:
+                    beat = self.parse_filename(filename)
+                else:
+                    beat = self.parse_loop_filename(filename)
+                self.add_beat(beat)
+                added_count += 1
+        
+        print(f"Added {added_count} items to the database.")
+
 def main():
     beat_manager = BeatManager(Management.database_path_beats)
     loop_manager = BeatManager(Management.database_path_loops)
@@ -222,7 +270,7 @@ def main():
 
 def manage_items(manager, item_type):
     print(f"{item_type} Management")
-    print("Available commands: list, add_properties, add_filename, remove, add_links, search, back")
+    print("Available commands: list, add_properties, add_filename, add_file_list, remove, add_links, search, back")
 
     while True:
         command = input(f"Enter {item_type.lower()} command: ").lower()
@@ -234,7 +282,17 @@ def manage_items(manager, item_type):
         elif command == "add_properties":
             manager.add_beat_by_properties()
         elif command == "add_filename":
-            manager.add_beat_by_filename()
+            if item_type == "Beat":
+                manager.add_beat_by_filename()
+            else:
+                filename = input("Enter loop filename: ")
+                manager.add_loops_from_filenames([filename])
+        elif command == "add_file_list":
+            file_path = input("Enter the path to the file containing the list of filenames: ")
+            if os.path.exists(file_path):
+                manager.add_beats_from_file(file_path)
+            else:
+                print("File not found. Please check the path and try again.")
         elif command == "add_links":
             manager.add_links_interactively()
         elif command == "remove":

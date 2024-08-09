@@ -57,7 +57,7 @@ def generate_instagram_data(config: Dict, download_link: str) -> Dict:
         "Minutes": None,
         "Queue Schedule": "QLAST",
         "Video Title": None,
-        "Post Type": "REELS",
+        "Post Type": "REEL",
         "Image URL": None,
         "Alt Texts": None,
         "Video URL": download_link,
