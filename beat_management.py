@@ -16,7 +16,7 @@ class Beat:
     link: Optional[str] = None
 
 class BeatManager:
-    def __init__(self, db_name=Management.database_path_beats):
+    def __init__(self, db_name):
         self.conn = sqlite3.connect(db_name)
         self.cursor = self.conn.cursor()
         self.create_table()
@@ -200,17 +200,34 @@ class BeatManager:
         return self.cursor.fetchall()
 
 def main():
-    manager = BeatManager()
+    beat_manager = BeatManager(Management.database_path_beats)
+    loop_manager = BeatManager(Management.database_path_loops)
     
-    print("Welcome to the Beat Management System!")
-    print("Available commands: list, add_properties, add_filename, remove, add_links, search, exit")
+    print("Welcome to the Beat and Loop Management System!")
+    print("Available commands: b* (for beats), l* (for loops), exit")
+    
+    while True:
+        command = input("Enter command (beats/loops/exit): ").lower()
+        if command == "exit":
+            beat_manager.close()
+            loop_manager.close()
+            print("Exiting Beat and Loop Management System. Goodbye!")
+            break
+        elif command.startswith('b'):
+            manage_items(beat_manager, "Beat")
+        elif command.startswith('l'):
+            manage_items(loop_manager, "Loop")
+        else:
+            print("Invalid command. Please try again.")
+
+def manage_items(manager, item_type):
+    print(f"{item_type} Management")
+    print("Available commands: list, add_properties, add_filename, remove, add_links, search, back")
 
     while True:
-        command = input("Enter command: ").lower()
+        command = input(f"Enter {item_type.lower()} command: ").lower()
 
-        if command == "exit":
-            manager.close()
-            print("Exiting Beat Management System. Goodbye!")
+        if command == "back":
             break
         elif command == "list":
             manager.list_beats()
@@ -221,15 +238,15 @@ def main():
         elif command == "add_links":
             manager.add_links_interactively()
         elif command == "remove":
-            beat_id = int(input("Enter the ID of the beat to remove: "))
-            manager.remove_beat(beat_id)
-            print(f"Beat with ID {beat_id} removed successfully.")
+            item_id = int(input(f"Enter the ID of the {item_type.lower()} to remove: "))
+            manager.remove_beat(item_id)
+            print(f"{item_type} with ID {item_id} removed successfully.")
         elif command == "search":
             query = input("Enter search query: ")
             search_by = input("Search by (name/id/pack) [default: name]: ").lower() or 'name'
             
             if search_by == 'pack':
-                has_pack = input("Search for beats with any pack? (y/n): ").lower() == 'y'
+                has_pack = input(f"Search for {item_type.lower()}s with any pack? (y/n): ").lower() == 'y'
             else:
                 has_pack = False
 
@@ -237,10 +254,10 @@ def main():
             
             if results:
                 print("Search results:")
-                for beat in results:
-                    print(beat)
+                for item in results:
+                    print(item)
             else:
-                print("No beats found matching that criteria.")
+                print(f"No {item_type.lower()}s found matching that criteria.")
         else:
             print("Invalid command. Please try again.")
 
