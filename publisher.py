@@ -42,7 +42,7 @@ def generate_youtube_data(config: Dict, beatname: str, download_link: str) -> Di
         "Tags": config.get("YT_tags", ""),
         "License": "YOUTUBE",
         "Embeddable": "Yes",
-        "Notify Subscribers": "Yes",
+        "Notify Subscribers": "No",
         "Made For Kids": "No"
     }
 

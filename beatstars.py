@@ -5,18 +5,18 @@ import re
 import subprocess
 import os
 
-def listdir_nohidden(path):
+def listdir_nohidden(path: [Path]) -> [Path]:
     return glob.glob(os.path.join(path, '*'))
 
-def bpm_convert(bpm, bars):
-    return float((1/(int(bpm) / 60)) * 4 * bars)
+def bpm_convert(bpm: int, bars: int) -> float:
+    return (60 / bpm) * 4 * bars
 
-def dircheck(dir):
+def dircheck(dir: Path) -> None:
    dir = Path(dir)
    if not dir.exists():
     dir.mkdir(parents=True)
 
-def silence_read(file_path):
+def silence_read(file_path: Path) -> float:
     ffmpeg_command = ["ffmpeg", "-i", f'{file_path}', "-vn", "-af", "silencedetect=n=-50dB:d=1", "-f", "null", "-"]
     process = subprocess.Popen(ffmpeg_command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
     silence_end = None
@@ -30,5 +30,5 @@ def silence_read(file_path):
             break
     return silence_end
 
-def ffmpeg_run(command):
+def ffmpeg_run(command: str) -> None:
     subprocess.run(command, shell = True, executable="/bin/bash")
