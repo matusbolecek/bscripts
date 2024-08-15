@@ -11,7 +11,7 @@ from beatstars_config import Beatpack, Management
 from beatstars import bpm_convert
 
 # Set up logging
-log_file = 'loop_kit_error.log'
+log_file = 'log_folder/loop_kit_error.log'
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 handler = RotatingFileHandler(log_file, maxBytes=1024*1024, backupCount=5)
 handler.setLevel(logging.ERROR)

@@ -62,8 +62,14 @@ class BeatManager:
               beat.tutorial_made, beat.social_media_video_made, beat.link, beat.typebeat_uploaded))
         self.conn.commit()
 
-    def remove_beat(self, beat_id):
-        self.cursor.execute('DELETE FROM beats WHERE id = ?', (beat_id,))
+    def remove_beat(self, beat_id_or_range):
+        if isinstance(beat_id_or_range, int):
+            self.cursor.execute('DELETE FROM beats WHERE id = ?', (beat_id_or_range,))
+        elif isinstance(beat_id_or_range, tuple) and len(beat_id_or_range) == 2:
+            start, end = beat_id_or_range
+            self.cursor.execute('DELETE FROM beats WHERE id BETWEEN ? AND ?', (start, end))
+        else:
+            raise ValueError("Invalid input. Expected an integer ID or a tuple of (start, end) IDs.")
         self.conn.commit()
 
     def get_beat(self, beat_id):
@@ -212,50 +218,47 @@ class BeatManager:
 
     @staticmethod
     def parse_loop_filename(filename: str) -> Beat:
-        # Remove file extension
-        name_parts = filename.rsplit('.', 1)[0].split()
+        # Remove file extension and split
+        parts = filename.rsplit('.', 1)[0].split()
+        
+        # Extract key (always the last part before @matejcikbeats or collaborators)
+        key_index = next(i for i in range(len(parts)-1, -1, -1) if parts[i].lower().endswith('min'))
+        key = parts[key_index]
+        
+        # Extract tempo (always before the key)
+        tempo = int(parts[key_index - 1])
         
         # Extract collaborators
         collaborators = "@matejcikbeats"
-        if 'x' in name_parts:
-            x_index = name_parts.index('x')
-            collaborators_parts = name_parts[x_index-1:]
-            collaborators = ', '.join([part.strip('@') for part in collaborators_parts if part != 'x'])
-            name_parts = name_parts[:x_index-1]
-        elif name_parts[-1].startswith('@'):
-            collaborators = name_parts[-1]
-            name_parts = name_parts[:-1]
+        if 'x' in parts:
+            x_index = parts.index('x')
+            collaborators = ', '.join([part.strip('@') for part in parts[x_index:] if part != 'x' and not part.isdigit() and part != key])
         
-        # Extract tempo and key
-        tempo = int(name_parts[-2])
-        key = name_parts[-1]
-        
-        # Extract name
-        name = ' '.join(name_parts[:-2])
+        # Extract name (everything before tempo)
+        name = ' '.join(parts[:key_index - 1])
         
         return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
 
     def add_loops_from_filenames(self, filenames: List[str]):
+        added_count = 0
         for filename in filenames:
-            loop = self.parse_loop_filename(filename)
-            self.add_beat(loop)  # Assuming you're using the same add_beat method for loops
-        print(f"Added {len(filenames)} loops to the database.")
+            try:
+                loop = self.parse_loop_filename(filename)
+                self.add_beat(loop)
+                added_count += 1
+            except Exception as e:
+                print(f"Error processing file '{filename}': {str(e)}")
+                print(f"Parsed parts: {filename.rsplit('.', 1)[0].split()}")
+        print(f"Added {added_count} loops to the database.")
 
-    def add_beats_from_file(self, file_path: str):
+    def add_beats_from_file(self, file_path: str, item_type: str):
         with open(file_path, 'r') as file:
             filenames = file.read().splitlines()
         
-        added_count = 0
-        for filename in filenames:
-            if filename.strip():  # Skip empty lines
-                if self.conn.database == Management.database_path_beats:
-                    beat = self.parse_filename(filename)
-                else:
-                    beat = self.parse_loop_filename(filename)
-                self.add_beat(beat)
-                added_count += 1
-        
-        print(f"Added {added_count} items to the database.")
+        if item_type.lower() == "loop":
+            self.add_loops_from_filenames(filenames)
+        else:
+            self.add_beats_from_filenames(filenames)
 
 def main():
     beat_manager = BeatManager(Management.database_path_beats)
@@ -300,15 +303,24 @@ def manage_items(manager, item_type):
         elif command == "add_file_list":
             file_path = input("Enter the path to the file containing the list of filenames: ")
             if os.path.exists(file_path):
-                manager.add_beats_from_file(file_path)
+                manager.add_beats_from_file(file_path, item_type)
             else:
                 print("File not found. Please check the path and try again.")
         elif command == "add_links":
             manager.add_links_interactively()
         elif command == "remove":
-            item_id = int(input(f"Enter the ID of the {item_type.lower()} to remove: "))
-            manager.remove_beat(item_id)
-            print(f"{item_type} with ID {item_id} removed successfully.")
+            item_id_input = input(f"Enter the ID or ID range (e.g., 10-20) of the {item_type.lower()}(s) to remove: ")
+            try:
+                if '-' in item_id_input:
+                    start, end = map(int, item_id_input.split('-'))
+                    manager.remove_beat((start, end))
+                    print(f"{item_type}s with IDs from {start} to {end} removed successfully.")
+                else:
+                    item_id = int(item_id_input)
+                    manager.remove_beat(item_id)
+                    print(f"{item_type} with ID {item_id} removed successfully.")
+            except ValueError as e:
+                print(f"Error: {str(e)}. Please enter a valid ID or ID range.")
         elif command == "search":
             query = input("Enter search query: ")
             search_by = input("Search by (name/id/pack) [default: name]: ").lower() or 'name'
