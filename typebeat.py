@@ -6,7 +6,7 @@ import subprocess
 import shutil
 import random
 
-from beatstars_config import Typebeat, beatstars_folder
+from beatstars_config import Typebeat, beatstars_folder, Management
 from beatstars import listdir_nohidden
 from beat_management import BeatManager
 
@@ -58,19 +58,47 @@ def process_folder(folder_path, picdir, artist, num, total, beatlist):
     print('Zipping done!')
 
     # Render video
-    picture = random.choice(os.listdir(picdir))
-    picture_path = os.path.join(picdir, picture)
-    print(f'Rendering video {num}/{total}')
-    export_name = os.path.join(Typebeat.export_directory, f"{master_file.stem}.mp4")
-    ffmpeg_cmd = [
-        'ffmpeg', '-threads', '0', '-framerate', '24', '-loop', '1',
-        '-i', picture_path, '-i', str(Typebeat.watermark), '-i', str(master_file),
-        '-filter_complex', "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2",
-        '-c:a', 'aac', '-c:v', 'h264_videotoolbox', '-shortest', export_name
-    ]
-    subprocess.run(ffmpeg_cmd, check=True)
-    shutil.move(picture_path, str(folder_path))
-    print('Video rendering done!')
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            pictures = [f for f in os.listdir(picdir) if not f.startswith('.')]  # Exclude hidden files
+            if not pictures:
+                print(f"No pictures found in {picdir}")
+                return
+            picture = random.choice(pictures)
+            picture_path = os.path.join(picdir, picture)
+            dest_picture_path = os.path.join(folder_path, picture)
+            
+            # Copy picture and verify
+            shutil.copy2(picture_path, dest_picture_path)
+            if not os.path.exists(dest_picture_path):
+                raise IOError("Picture copy failed")
+            
+            print(f'Rendering video {num}/{total} (Attempt {attempt + 1})')
+            export_name = os.path.join(Typebeat.export_directory, f"{master_file.stem}.mp4")
+            ffmpeg_cmd = [
+                'ffmpeg', '-threads', '0', '-framerate', '24', '-loop', '1',
+                '-i', dest_picture_path, '-i', str(Typebeat.watermark), '-i', str(master_file),
+                '-filter_complex', "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2",
+                '-c:a', 'aac', '-c:v', 'h264_videotoolbox', '-shortest', export_name
+            ]
+            subprocess.run(ffmpeg_cmd, check=True, stderr=subprocess.PIPE, universal_newlines=True)
+            print('Video rendering done!')
+
+            # Move picture to archive
+            archive_dir = Path(picdir).parent / 'archive' / artist
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(picture_path, archive_dir / picture)
+
+            break  # If we get here, the video was rendered successfully
+
+        except (IOError, subprocess.CalledProcessError) as e:
+            print(f"Error during attempt {attempt + 1}: {str(e)}")
+            if attempt == max_attempts - 1:
+                print(f"Failed to render video after {max_attempts} attempts. Skipping this folder.")
+                return
+            else:
+                print("Retrying with a different picture...")
 
     # Render MP3
     print(f'Rendering MP3 {num}/{total}')
@@ -83,7 +111,7 @@ def process_folder(folder_path, picdir, artist, num, total, beatlist):
     beatlist.append(master_file.stem)
 
 def data_write(beatlist):
-    manager = BeatManager()
+    manager = BeatManager(Management.database_path_beats)
     manager.add_beats_from_filenames(beatlist)
     manager.close()
 
