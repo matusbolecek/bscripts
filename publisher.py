@@ -21,8 +21,9 @@ def load_config(script_dir: str, config_file: str = f"{Publisher.resources_path}
         return {}
 
 def generate_youtube_data(config: Dict, beatname: str, download_link: str) -> Dict:
+    yt_title = f"{config.get('YT_title', '')} \"{beatname}\""
     return {
-        "Text": config.get("YT_desc", ""),
+        "Text": f"{config.get('YT_desc', '')}\n{yt_title}",
         "Year": None,
         "Month (1 to 12)": None,
         "Date": None,
@@ -30,7 +31,7 @@ def generate_youtube_data(config: Dict, beatname: str, download_link: str) -> Di
         "Minutes": None,
         "Queue Schedule": "QLAST",
         "Post Type": "SHORTS",
-        "Video Title": f"{config.get('YT_title', '')} \"{beatname}\"",
+        "Video Title": yt_title,
         "Video URL": download_link,
         "Thumbnail URL": None,
         "Subtitles URL": None,
@@ -48,7 +49,7 @@ def generate_youtube_data(config: Dict, beatname: str, download_link: str) -> Di
 
 def generate_instagram_data(config: Dict, download_link: str) -> Dict:
     return {
-        "Text": config.get("IG_Text", ""),
+        "Text": f"{config.get('IG_Text', '')}\n{config.get('IG_Comment', '')}",
         "Link": None,
         "Year": None,
         "Month (1 to 12)": None,
@@ -67,7 +68,7 @@ def generate_instagram_data(config: Dict, download_link: str) -> Dict:
         "Google Business Profile URL": None,
         "Pinterest Title": None,
         "Pinterest Link": None,
-        "Instagram First Comment": config.get("IG_comment", ""),
+        "Instagram First Comment": None,
         "Facebook First Comment": None,
         "LinkedIn First Comment": None,
         "TikTok First Comment": None,
