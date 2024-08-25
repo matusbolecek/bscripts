@@ -19,7 +19,9 @@ def get_dropbox_service():
 
 def sanitize_path(path):
     # Remove invalid characters and replace spaces with underscores
-    return re.sub(r'[<>:"/\\|?*\s]', '_', path)
+    sanitized = re.sub(r'[<>:"/\\|?*\s]', '_', path)
+    # Ensure the path is UTF-8 encoded
+    return sanitized.encode('utf-8', errors='ignore').decode('utf-8')
 
 def create_folder(dbx, folder_name, parent_path=''):
     folder_name = sanitize_path(folder_name)
@@ -54,18 +56,28 @@ def upload_file(dbx, file_path, folder_path):
 def process_files_with_dropbox(folder_path, dropbox_folder_name):
     dbx = get_dropbox_service()
     if not dbx:
+        print("Failed to initialize Dropbox service")
         return
 
     dropbox_folder_path = create_folder(dbx, dropbox_folder_name)
     if not dropbox_folder_path:
+        print(f"Failed to create or access folder: {dropbox_folder_name}")
         return
 
     for filename in os.listdir(folder_path):
-        if filename.endswith(('.mp4', '.mov', '.jpg', '.jpeg', '.png', '.gif')):
-            file_path = os.path.join(folder_path, filename)
-            direct_link = upload_file(dbx, file_path, dropbox_folder_path)
-            if direct_link:
-                yield filename, direct_link
+        try:
+            if filename.endswith(('.mp4', '.mov', '.jpg', '.jpeg', '.png', '.gif')):
+                file_path = os.path.join(folder_path, filename)
+                print(f"Processing file: {file_path}")
+                direct_link = upload_file(dbx, file_path, dropbox_folder_path)
+                if direct_link:
+                    yield filename, direct_link
+                else:
+                    print(f"Failed to upload file: {filename}")
+        except Exception as e:
+            print(f"Error processing file {filename}: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     pass

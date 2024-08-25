@@ -7,6 +7,7 @@ import sys
 import shlex
 
 from beat_management import BeatManager, Beat
+from beatstars_config import Management
 
 def process_video(video_path, beat_info, resource_folder, export_folder):
     # Extract necessary information from beat_info
@@ -120,7 +121,7 @@ def main():
     # Create export folder if it doesn't exist
     export_folder.mkdir(exist_ok=True)
 
-    beat_manager = BeatManager()
+    beat_manager = BeatManager(Management.database_path_beats)
 
     for folder in video_folder.iterdir():
         if folder.is_dir():
