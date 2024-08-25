@@ -28,6 +28,12 @@ def check_picture_count(pic_dir, root_dir):
         print(f'Not enough pictures in the specified folder! {folder_count - pic_count} pictures missing!')
         sys.exit(1)
 
+def check_duplicate_in_database(filename):
+    manager = BeatManager(Management.database_path_beats)
+    is_duplicate = manager.beat_exists(filename)
+    manager.close()
+    return is_duplicate
+
 def process_folder(folder_path, picdir, artist, num, total, beatlist):
     folder_path = Path(folder_path)
     
@@ -41,6 +47,13 @@ def process_folder(folder_path, picdir, artist, num, total, beatlist):
         print(f"No master file found in {folder_path}")
         return
     master_file = master_files[0]
+
+    # Check for duplicate
+    if check_duplicate_in_database(master_file.stem):
+        user_choice = input(f"Duplicate found for {master_file.stem}. Process anyway? (y/n): ").lower()
+        if user_choice != 'y':
+            print(f"Skipping folder {folder_path}")
+            return
 
     # Zip stems
     print(f'Zipping file {num}/{total}')

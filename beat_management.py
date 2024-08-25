@@ -54,13 +54,32 @@ class BeatManager:
             self.cursor.execute('ALTER TABLE beats ADD COLUMN typebeat_uploaded BOOLEAN DEFAULT 0')
         self.conn.commit()
 
+    def beat_exists(self, name: str) -> bool:
+        """
+        Check if a beat with the given name already exists in the database.
+        
+        :param name: The name of the beat to check
+        :return: True if the beat exists, False otherwise
+        """
+        self.cursor.execute('SELECT COUNT(*) FROM beats WHERE name = ?', (name,))
+        count = self.cursor.fetchone()[0]
+        return count > 0
+
     def add_beat(self, beat: Beat):
+        if self.beat_exists(beat.name):
+            print(f"Warning: A beat with the name '{beat.name}' already exists in the database.")
+            user_choice = input("Do you want to add this beat anyway? (y/n): ").lower()
+            if user_choice != 'y':
+                print("Beat not added.")
+                return
+
         self.cursor.execute('''
         INSERT INTO beats (name, collaborators, key, tempo, pack, tutorial_made, social_media_video_made, link, typebeat_uploaded)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (beat.name, beat.collaborators, beat.key, beat.tempo, beat.pack, 
               beat.tutorial_made, beat.social_media_video_made, beat.link, beat.typebeat_uploaded))
         self.conn.commit()
+        print(f"Beat '{beat.name}' added successfully.")
 
     def remove_beat(self, beat_id_or_range):
         if isinstance(beat_id_or_range, int):
