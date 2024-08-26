@@ -131,17 +131,24 @@ class BeatManager:
             print("All beats already have links.")
             return
 
-        print("Adding links to beats. Type '!exit' to stop the process at any time.")
+        print("Adding links to beats. Type '!exit' to stop the process, or '!skip' to skip a beat.")
         
         for beat_id, beat_name in beats_without_links:
-            link = input(f"Enter link for beat '{beat_name}' (ID: {beat_id}): ")
-            
-            if link.lower() == '!exit':
-                print("Link addition process terminated.")
-                break
-            
-            self.update_link(beat_id, link)
-            print(f"Link added for beat '{beat_name}'.")
+            while True:
+                link = input(f"Enter link for beat '{beat_name}' (ID: {beat_id}): ")
+                
+                if link.lower() == '!exit':
+                    print("Link addition process terminated.")
+                    return
+                elif link.lower() == '!skip':
+                    print(f"Skipped beat '{beat_name}'.")
+                    break
+                elif link.strip():
+                    self.update_link(beat_id, link)
+                    print(f"Link added for beat '{beat_name}'.")
+                    break
+                else:
+                    print("Please enter a valid link, '!skip', or '!exit'.")
 
         print("Link addition process completed.")
 
