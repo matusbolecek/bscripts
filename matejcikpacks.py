@@ -127,11 +127,11 @@ def process_beat(cursor, file: Path, pack_name: str) -> Tuple:
         print(f"Extracted info: name='{name}', collaborators='{collaborators}', bpm={bpm}, key='{key}'")
     except ValueError as e:
         print(f"Error processing {file.name}: {str(e)}")
-        return None, False  # Return None instead of raising an exception
+        return None, False
 
     if not name:
         print(f"Warning: Empty beat name extracted from '{file.name}'. Skipping this file.")
-        return None, False  # Return None instead of raising an exception
+        return None, False
 
     beat = get_beat_from_database(cursor, name, bpm, key)
     
@@ -156,7 +156,18 @@ def process_beat(cursor, file: Path, pack_name: str) -> Tuple:
         update_beat_pack(cursor, beat_id, pack_name)
         return get_beat_from_database(cursor, name, bpm, key), True
 
-def tag_and_copy_beat(input_file: Path, output_file: Path, bpm: int):
+def generate_new_filename(beat_number: int, name: str, bpm: int, key: str, collaborators: str) -> str:
+    # Split collaborators and remove any instance of 'matejcikbeats'
+    collab_list = [c.strip() for c in collaborators.split(',') if c.strip().lower() != 'matejcikbeats']
+    
+    if collab_list:
+        collab_string = f"@matejcikbeats x {' x '.join(collab_list)}"
+    else:
+        collab_string = "@matejcikbeats"
+    
+    return f"{beat_number:02d}. '{name}' - {bpm} {key} {collab_string}.mp3"
+
+def tag_and_copy_beat(input_file: Path, output_folder: Path, bpm: int, beat_number: int, name: str, key: str, collaborators: str):
     tag_folder = Beatpack.resources_path / 'Tags'
     tag_list = [str(item) for item in tag_folder.iterdir() if item.is_file() and item.suffix.lower() in ('.wav', '.mp3')]
     if not tag_list:
@@ -169,12 +180,16 @@ def tag_and_copy_beat(input_file: Path, output_file: Path, bpm: int):
         tagmpeg = f'ffmpeg -i "{chosen_tag}" -filter:a "atempo={(18 / bpm_convert(bpm, 12))}" newtag.wav'
         subprocess.run(tagmpeg, shell=True, executable="/bin/bash", check=True)
 
+        # Generate new filename
+        new_filename = generate_new_filename(beat_number, name, bpm, key, collaborators)
+        output_file = output_folder / new_filename
+
         # Mix the tag with the beat
         mp3mpeg = f'ffmpeg -i "{input_file}" -i "newtag.wav" -filter_complex amix=inputs=2:duration=longest:normalize=0 -ab 320k "{output_file}"'
         subprocess.run(mp3mpeg, shell=True, executable="/bin/bash", check=True)
 
         os.remove('newtag.wav')
-        print(f"Successfully tagged and copied: {output_file}")
+        print(f"Successfully tagged, renamed, and copied: {output_file}")
     except subprocess.CalledProcessError as e:
         print(f"Error in ffmpeg processing: {e}")
     except Exception as e:
@@ -292,16 +307,15 @@ def main():
     selected_beats = []
     beat_properties = []
 
-    for file in input_folder.iterdir():
+    for beat_number, file in enumerate(sorted(input_folder.iterdir()), start=1):
         if file.suffix.lower() in ('.mp3', '.wav'):
             try:
                 print(f"\nProcessing file: {file.name}")
                 beat, should_process = process_beat(cursor, file, pack_name)
                 if should_process and beat is not None:
                     selected_beats.append(beat)
-                    output_file = output_folder / file.name
                     try:
-                        tag_and_copy_beat(file, output_file, beat[4])  # beat[4] is tempo
+                        tag_and_copy_beat(file, output_folder, beat[4], beat_number, beat[1], beat[3], beat[2])  # beat[4] is tempo, beat[1] is name, beat[3] is key, beat[2] is collaborators
                         print(f"Processed and copied: {file.name}")
                         
                         # Create beat_properties string
