@@ -44,6 +44,12 @@ def process_folder(folder_path: Path, rootdir: str) -> None:
     with open(folder_path / "props.json", "r") as f:
         props = json.load(f)
 
+    try:
+        props["video_bpm"] = float(props["video_bpm"])
+    except ValueError:
+        print(f"Error: Invalid 'video_bpm' value in {folder_path.name}/props.json. Must be a valid number.")
+        return
+
     final_directory = Path(rootdir) / 'export' / folder_path.name
     final_directory.mkdir(exist_ok=True)
     file_list.sort()
@@ -52,7 +58,6 @@ def process_folder(folder_path: Path, rootdir: str) -> None:
     process_main_video(file_list, props, final_directory)
     process_preview(file_list, props, final_directory)
     combine_videos(final_directory, rootdir, props)
-
 
 def process_intro(file_list: List[Path], props: Dict, final_directory: Path) -> None:
     # Process the intro part of the video
@@ -106,8 +111,6 @@ def process_preview(file_list: List[Path], props: Dict, final_directory: Path) -
     -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 320k "{final_directory}/third.mov"'''
     
     subprocess.run(preview_command, shell=True, executable="/bin/bash")
-    
-    subprocess.run(preview_command, shell=True, executable="/bin/bash")
 
 def save_preview(file_list: List[Path], final_directory: Path):
     final_directory = f'{Cookup.cookup_exports}/social/{final_directory.name}'
@@ -152,7 +155,7 @@ def combine_videos(final_directory: Path, root_folder: Path, props: Dict) -> Non
     -map "[outv]" -map "[finalaudio]" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 320k "{Cookup.cookup_exports}/export/{final_directory.name}.mov"'''
     
     run_ffmpeg_and_update_db(combine_command, final_directory.name)
-    
+
 def main(rootdir: str) -> None:
     # Main function to process all folders in the import directory
     os.chdir(rootdir)
@@ -167,5 +170,12 @@ def main(rootdir: str) -> None:
         process_folder(Path(folder), rootdir)
 
 if __name__ == "__main__":
-    inputdir = input('Input the root directory path: ').strip("'\"")
-    main(inputdir)
+    query = input('json / process: ')
+    if query == 'json':
+        json_path = Path(input('Give the path to the folder: ').strip("'\""))
+        write_json(json_path)
+    elif query == 'process':
+        inputdir = input('Input the root directory path: ').strip("'\"")
+        main(inputdir)
+    else:
+        print('Invalid option!')
