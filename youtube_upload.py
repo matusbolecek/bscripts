@@ -1,5 +1,6 @@
 import os
 import json
+import csv
 import pandas as pd
 from typing import Dict, List, Tuple, Optional
 import subprocess
@@ -9,7 +10,7 @@ import logging
 
 from dropbox_integration import process_files_with_dropbox
 from beatstars_config import Publisher, Youtube, Management
-from beat_management import BeatManager  # Corrected import
+from beat_management import BeatManager
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -72,35 +73,38 @@ def generate_subtitles(video_path: str, beat_info: Dict, yt_title: str) -> Optio
         return None
 
 def generate_description(beat_info: Dict, channel_config: Dict, global_config: Dict, yt_title: str) -> str:
-    description = f"""💰 Purchase This Beat (Untagged) | {beat_info.get('download_link', '')}
+    description_parts = [
+        f"💰 Purchase This Beat (Untagged) | {beat_info.get('purchase_link', '')}",
+        "",
+        global_config.get('Pack', ''),
+        "",
+        f"BPM: {beat_info.get('tempo', '')}",
+        f"KEY: {beat_info.get('key', '')}",
+        "",
+        "Instagram: https://www.instagram.com/matejcikbeats",
+        "Email: matejcikbeats@gmail.com",
+        "Beat Store: https://matejcikbeats.beatstars.com/",
+        "",
+        f"Prod. {beat_info.get('collaborators', '')}",
+        "",
+        "This instrumental is free to use for non-profit use. If you have any questions, please contact me.",
+        "A license must be purchased to use for profit (Streaming Services, music videos, etc.)",
+        "Must Credit: (prod. matejcikbeats)",
+        "",
+        "TAGS (IGNORE):",
+        yt_title,
+        channel_config.get('Gpt', ''),
+        "",
+        "Some other ways I would describe this beat:",
+        channel_config.get('Tags', '')
+    ]
 
-{global_config.get('Pack', '')}
+    return '\\n'.join(part for part in description_parts if part)
 
-BPM: {beat_info.get('tempo', '')}
-KEY: {beat_info.get('key', '')}
-
-Instagram: https://www.instagram.com/matejcikbeats
-Email: matejcikbeats@gmail.com
-Beat Store: https://matejcikbeats.beatstars.com/
-
-Prod. {beat_info.get('collaborators', '')}
-
-This instrumental is free to use for non-profit use. If you have any questions, please contact me.
-A license must be purchased to use for profit (Streaming Services, music videos, etc.)
-Must Credit: (prod. matejcikbeats)
-
-TAGS (IGNORE):
-{yt_title}
-{channel_config.get('Gpt', '')}
-
-Some other ways I would describe this beat:
-{', '.join(channel_config.get('Tags', []))}"""
-    return description
-
-def generate_youtube_data(channel_config: Dict, global_config: Dict, beat_info: Dict, download_link: str, subtitles_link: str, thumbnail_link: str) -> Dict:
+def generate_youtube_data(channel_config: Dict, global_config: Dict, beat_info: Dict, video_link: str, subtitles_link: str, thumbnail_link: str) -> Dict:
     config = {**global_config, **channel_config}
     
-    yt_title = f"{config.get('YT_title', '')} \"{beat_info['name']}\""
+    yt_title = f"{config.get('Title', '')} {beat_info['name']}"
     description = generate_description(beat_info, channel_config, global_config, yt_title)
     
     return {
@@ -113,7 +117,7 @@ def generate_youtube_data(channel_config: Dict, global_config: Dict, beat_info: 
         "Queue Schedule": "QLAST",
         "Post Type": "VIDEO",
         "Video Title": yt_title,
-        "Video URL": download_link,
+        "Video URL": video_link,
         "Thumbnail URL": thumbnail_link,
         "Subtitles URL": subtitles_link,
         "Subtitles Language": "en",
@@ -183,7 +187,13 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             'collaborators': beat[2],
             'key': beat[3],
             'tempo': beat[4],
+            'purchase_link': beat[5] if len(beat) > 5 else None
         }
+
+        if not beat_info['purchase_link']:
+            purchase_link = input(f"Enter purchase link for beat '{beatname}': ")
+            beat_manager.update_link(beat[0], purchase_link)  # Assuming the first element is the beat ID
+            beat_info['purchase_link'] = purchase_link
 
         video_file = find_video_file(folder_path)
         if not video_file:
@@ -191,31 +201,30 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             return
 
         dropbox_folder_name = "TypeBeat"
-        video_download_link = upload_to_dropbox(video_file, dropbox_folder_name, Publisher.dropbox2)
-        if not video_download_link:
+        video_link = upload_to_dropbox(video_file, dropbox_folder_name, Publisher.dropbox2)
+        if not video_link:
             logging.warning(f"Failed to upload video for '{beatname}' to Dropbox. Skipping this folder.")
             return
 
-        yt_title = f"{channel_config.get('YT_title', '')} \"{beat_info['name']}\""
+        yt_title = f"{channel_config.get('Title', '')} \"{beat_info['name']}\""
         srt_path = generate_subtitles(video_file, beat_info, yt_title)
         if not srt_path:
             logging.warning(f"Failed to generate SRT file for '{beatname}'. Skipping this folder.")
             return
 
-        srt_download_link = upload_to_dropbox(srt_path, f"{dropbox_folder_name}/subtitles", Publisher.dropbox2)
-        if not srt_download_link:
+        subtitles_link = upload_to_dropbox(srt_path, dropbox_folder_name, Publisher.dropbox2)
+        if not subtitles_link:
             logging.warning(f"Failed to upload SRT file for '{beatname}' to Dropbox. Skipping this folder.")
             return
 
         thumbnail_file = find_thumbnail_file(folder_path)
         if thumbnail_file:
-            thumbnail_link = upload_to_dropbox(thumbnail_file, f"{dropbox_folder_name}/thumbnails", Publisher.dropbox2)
+            thumbnail_link = upload_to_dropbox(thumbnail_file, dropbox_folder_name, Publisher.dropbox2)
         else:
             logging.warning(f"Thumbnail for '{beatname}' not found. Using default thumbnail.")
             thumbnail_link = channel_config.get('default_thumbnail_url', None)
 
-        beat_info['download_link'] = video_download_link
-        youtube_data = generate_youtube_data(channel_config, global_config, beat_info, video_download_link, srt_download_link, thumbnail_link)
+        youtube_data = generate_youtube_data(channel_config, global_config, beat_info, video_link, subtitles_link, thumbnail_link)
 
         save_to_csv([youtube_data], channel_name, os.path.dirname(os.path.abspath(__file__)))
 
@@ -233,23 +242,21 @@ def save_to_csv(data: List[Dict], channel_name: str, script_dir: str):
     template_path = os.path.join(script_dir, f'{Publisher.resources_path}/Bulk_Uploader_YouTube_Template.csv')
 
     try:
-        template_df = pd.read_csv(template_path)
-    except FileNotFoundError:
-        logging.error(f"Template file not found: {template_path}")
-        return
+        with open(template_path, 'r', newline='', encoding='utf-8') as template_file:
+            csv_reader = csv.DictReader(template_file)
+            fieldnames = csv_reader.fieldnames
 
-    user_df = pd.DataFrame(data, columns=template_df.columns)
-    
-    current_time = datetime.now()
-    output_filename = f"{channel_name}_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-    output_path = os.path.join(script_dir, output_filename)
-    logging.debug(f"Attempting to save CSV to: {output_path}")
-    
-    try:
-        user_df.to_csv(output_path, index=False)
+        current_time = datetime.now()
+        output_filename = f"{channel_name}_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+        output_path = os.path.join(script_dir, output_filename)
+        
+        with open(output_path, 'w', newline='', encoding='utf-8') as output_file:
+            csv_writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            for row in data:
+                csv_writer.writerow(row)
+
         logging.info(f"Data saved to {output_path}")
-    except PermissionError:
-        logging.error(f"Permission denied when trying to write to {output_path}")
     except Exception as e:
         logging.error(f"Error saving CSV: {str(e)}")
 
