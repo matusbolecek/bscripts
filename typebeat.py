@@ -111,14 +111,14 @@ def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
-            # Select and copy random picture
+            # Select and copy random picture to the folder_path
             pictures = [f for f in os.listdir(picdir) if not f.startswith('.')]
             if not pictures:
                 print(f"No pictures found in {picdir}")
                 return
             picture = random.choice(pictures)
             picture_path = os.path.join(picdir, picture)
-            dest_picture_path = os.path.join(export_folder, picture)
+            dest_picture_path = folder_path / picture
             shutil.copy2(picture_path, dest_picture_path)
 
             # Select random video
@@ -136,12 +136,12 @@ def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
             ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(master_file)]
             duration = float(subprocess.check_output(ffprobe_cmd).decode('utf-8').strip())
             
-            create_looping_video(video_path, str(export_name), str(master_file), str(Typebeat.watermark), duration)
+            create_looping_video(video_path, str(export_name), str(master_file), str(Typebeat.watermark_black), duration)
             print('Video rendering done!')
 
             # Create thumbnail
             thumbnail_path = export_folder / f"{master_file.stem}_thumbnail.jpg"
-            create_thumbnail(dest_picture_path, str(Typebeat.watermark_black), str(thumbnail_path))
+            create_thumbnail(str(dest_picture_path), str(Typebeat.watermark_black), str(thumbnail_path))
             print('Thumbnail created!')
 
             # Move picture to archive
