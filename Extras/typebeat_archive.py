@@ -15,7 +15,7 @@ def get_valid_artist():
     while True:
         artist = input(f"Choose an artist ({' / '.join(artists)}): ")
         if artist in artists:
-            return artist, f'{Typebeat.pictures}/{artist}', f'{Typebeat.videos}/{artist}'
+            return artist, f'{Typebeat.pictures}/{artist}'
         print('Not a valid option! Please try again.')
 
 def count_files(directory, condition):
@@ -34,42 +34,9 @@ def check_duplicate_in_database(filename):
     manager.close()
     return is_duplicate
 
-def create_looping_video(input_video, output_video, audio_file, watermark_black, duration):
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-stream_loop', '-1',  # Loop the input video
-        '-i', input_video,
-        '-i', audio_file,
-        '-i', watermark_black,
-        '-filter_complex',
-        "[0:v]trim=start_frame=1,scale=-2:1080:flags=lanczos,setsar=1[v]; \
-         [v][0:v]concat=n=2:v=1[looped]; \
-         [looped]scale=-2:1080:flags=lanczos,setsar=1[scaled_video]; \
-         [2:v][scaled_video]overlay=(W-w)/2:(H-h)/2:format=auto,format=yuv420p[final]",
-        '-map', '[final]',
-        '-map', '1:a',
-        '-shortest',
-        '-c:v', 'h264_videotoolbox',
-        '-c:a', 'aac',
-        '-t', str(duration),
-        output_video
-    ]
-    subprocess.run(ffmpeg_cmd, check=True, stderr=subprocess.PIPE, universal_newlines=True)
-
-def create_thumbnail(picture_file, watermark_black, thumbnail_file):
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-i', watermark_black,
-        '-i', picture_file,
-        '-filter_complex', '[1:v]scale=-2:1080:flags=lanczos[pic];[0:v][pic]overlay=(W-w)/2:(H-h)/2',
-        '-frames:v', '1',
-        thumbnail_file
-    ]
-    subprocess.run(ffmpeg_cmd, check=True, stderr=subprocess.PIPE, universal_newlines=True)
-
-def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
+def process_folder(folder_path, picdir, artist, num, total, beatlist):
     folder_path = Path(folder_path)
-
+    
     # Remove current.wav files
     for file in folder_path.glob('*Current.wav'):
         file.unlink()
@@ -103,46 +70,33 @@ def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
     (folder_path / 'stems.zip').rename(folder_path / zip_name)
     print('Zipping done!')
 
-    # Create export folder for this beat
-    export_folder = Path(Typebeat.export_directory) / artist / master_file.stem
-    export_folder.mkdir(parents=True, exist_ok=True)
-
     # Render video
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
-            # Select and copy random picture
-            pictures = [f for f in os.listdir(picdir) if not f.startswith('.')]
+            pictures = [f for f in os.listdir(picdir) if not f.startswith('.')]  # Exclude hidden files
             if not pictures:
                 print(f"No pictures found in {picdir}")
                 return
             picture = random.choice(pictures)
             picture_path = os.path.join(picdir, picture)
-            dest_picture_path = os.path.join(export_folder, picture)
+            dest_picture_path = os.path.join(folder_path, picture)
+            
+            # Copy picture and verify
             shutil.copy2(picture_path, dest_picture_path)
-
-            # Select random video
-            videos = [f for f in os.listdir(viddir) if not f.startswith('.') and f.endswith('.mp4')]
-            if not videos:
-                print(f"No videos found in {viddir}")
-                return
-            video = random.choice(videos)
-            video_path = os.path.join(viddir, video)
-
+            if not os.path.exists(dest_picture_path):
+                raise IOError("Picture copy failed")
+            
             print(f'Rendering video {num}/{total} (Attempt {attempt + 1})')
-            export_name = export_folder / f"{master_file.stem}.mp4"
-            
-            # Get audio duration
-            ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(master_file)]
-            duration = float(subprocess.check_output(ffprobe_cmd).decode('utf-8').strip())
-            
-            create_looping_video(video_path, str(export_name), str(master_file), str(Typebeat.watermark), duration)
+            export_name = os.path.join(Typebeat.export_directory, f"{master_file.stem}.mp4")
+            ffmpeg_cmd = [
+                'ffmpeg', '-threads', '0', '-framerate', '24', '-loop', '1',
+                '-i', dest_picture_path, '-i', str(Typebeat.watermark), '-i', str(master_file),
+                '-filter_complex', "[0:v]scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]; [1:v]scale=1920:-1:flags=lanczos[overlay]; [base][overlay]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2",
+                '-c:a', 'aac', '-c:v', 'h264_videotoolbox', '-shortest', export_name
+            ]
+            subprocess.run(ffmpeg_cmd, check=True, stderr=subprocess.PIPE, universal_newlines=True)
             print('Video rendering done!')
-
-            # Create thumbnail
-            thumbnail_path = export_folder / f"{master_file.stem}_thumbnail.jpg"
-            create_thumbnail(dest_picture_path, str(Typebeat.watermark_black), str(thumbnail_path))
-            print('Thumbnail created!')
 
             # Move picture to archive
             archive_dir = Path(picdir).parent / 'archive' / artist
@@ -151,13 +105,13 @@ def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
 
             break  # If we get here, the video was rendered successfully
 
-        except subprocess.CalledProcessError as e:
+        except (IOError, subprocess.CalledProcessError) as e:
             print(f"Error during attempt {attempt + 1}: {str(e)}")
             if attempt == max_attempts - 1:
                 print(f"Failed to render video after {max_attempts} attempts. Skipping this folder.")
                 return
             else:
-                print("Retrying with a different video and picture...")
+                print("Retrying with a different picture...")
 
     # Render MP3
     print(f'Rendering MP3 {num}/{total}')
@@ -175,16 +129,16 @@ def data_write(beatlist):
     manager.close()
 
 if __name__ == "__main__":
-    artist, picdir, viddir = get_valid_artist()
+    artist, picdir = get_valid_artist()
     beat_names = []
-
+    
     # Improved input handling for paths with escaped spaces
     rootdir = input('Input the root directory path: ')
     rootdir = rootdir.strip("'\"")  # Remove any surrounding quotes
     rootdir = rootdir.replace("\\ ", " ")  # Replace escaped spaces with actual spaces
     rootdir = os.path.expanduser(rootdir)  # Expand user directory if present (e.g., ~)
     rootdir = os.path.abspath(rootdir)  # Convert to absolute path
-
+    
     if not os.path.exists(rootdir):
         print(f"The directory '{rootdir}' does not exist.")
         sys.exit(1)
@@ -193,6 +147,6 @@ if __name__ == "__main__":
 
     total_folders = sum(1 for _ in listdir_nohidden(rootdir))
     for num, folder in enumerate(listdir_nohidden(rootdir), 1):
-        process_folder(os.path.join(rootdir, folder), picdir, viddir, artist, num, total_folders, beat_names)
+        process_folder(os.path.join(rootdir, folder), picdir, artist, num, total_folders, beat_names)
 
     data_write(beat_names)
