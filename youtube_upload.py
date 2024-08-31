@@ -74,37 +74,31 @@ def generate_subtitles(video_path: str, beat_info: Dict, yt_title: str) -> Optio
 
 def generate_description(beat_info: Dict, channel_config: Dict, global_config: Dict, yt_title: str) -> str:
     description_parts = [
-        f"💰 Purchase This Beat (Untagged) | {beat_info.get('purchase_link', '')}",
-        "",
-        global_config.get('Pack', ''),
-        "",
-        f"BPM: {beat_info.get('tempo', '')}",
-        f"KEY: {beat_info.get('key', '')}",
-        "",
-        "Instagram: https://www.instagram.com/matejcikbeats",
-        "Email: matejcikbeats@gmail.com",
-        "Beat Store: https://matejcikbeats.beatstars.com/",
-        "",
-        f"Prod. {beat_info.get('collaborators', '')}",
-        "",
-        "This instrumental is free to use for non-profit use. If you have any questions, please contact me.",
-        "A license must be purchased to use for profit (Streaming Services, music videos, etc.)",
-        "Must Credit: (prod. matejcikbeats)",
-        "",
-        "TAGS (IGNORE):",
-        yt_title,
-        channel_config.get('Gpt', ''),
-        "",
-        "Some other ways I would describe this beat:",
+        f"💰 Purchase This Beat (Untagged) | {beat_info.get('purchase_link', '')} \n\n",
+        f"{global_config.get('Pack', '')} \n\n",
+        f"BPM: {beat_info.get('tempo', '')}\n",
+        f"KEY: {beat_info.get('key', '')}\n\n",
+        "Instagram: https://www.instagram.com/matejcikbeats\n",
+        "Email: matejcikbeats@gmail.com\n",
+        "Beat Store: https://matejcikbeats.beatstars.com/\n",
+        f"Prod. {beat_info.get('collaborators', '')}\n\n",
+        "This instrumental is free to use for non-profit use. If you have any questions, please contact me.\n",
+        "A license must be purchased to use for profit (Streaming Services, music videos, etc.)\n",
+        "Must Credit: (prod. matejcikbeats)\n\n",
+        "TAGS (IGNORE):\n\n",
+        f"{yt_title}\n\n",
+        f"{channel_config.get('Gpt', '')}\n\n",
+        "Some other ways I would describe this beat:\n",
         channel_config.get('Tags', '')
     ]
 
-    return '\\n'.join(part for part in description_parts if part)
+    # Join all parts without any additional newlines
+    return ''.join(part for part in description_parts if part is not None)
 
 def generate_youtube_data(channel_config: Dict, global_config: Dict, beat_info: Dict, video_link: str, subtitles_link: str, thumbnail_link: str) -> Dict:
     config = {**global_config, **channel_config}
     
-    yt_title = f"{config.get('Title', '')} {beat_info['name']}"
+    yt_title = f'{config.get("Title", "")} "{beat_info["name"]}"'
     description = generate_description(beat_info, channel_config, global_config, yt_title)
     
     return {
@@ -201,7 +195,9 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             return
 
         dropbox_folder_name = "TypeBeat"
-        video_link = upload_to_dropbox(video_file, dropbox_folder_name, Publisher.dropbox2)
+        uploaded_files = list(process_files_with_dropbox(folder_path, dropbox_folder_name, Publisher.dropbox2))
+        
+        video_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(video_file).lower()), None)
         if not video_link:
             logging.warning(f"Failed to upload video for '{beatname}' to Dropbox. Skipping this folder.")
             return
@@ -212,14 +208,17 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             logging.warning(f"Failed to generate SRT file for '{beatname}'. Skipping this folder.")
             return
 
-        subtitles_link = upload_to_dropbox(srt_path, dropbox_folder_name, Publisher.dropbox2)
+        subtitles_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(srt_path).lower()), None)
         if not subtitles_link:
             logging.warning(f"Failed to upload SRT file for '{beatname}' to Dropbox. Skipping this folder.")
             return
 
         thumbnail_file = find_thumbnail_file(folder_path)
         if thumbnail_file:
-            thumbnail_link = upload_to_dropbox(thumbnail_file, dropbox_folder_name, Publisher.dropbox2)
+            thumbnail_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(thumbnail_file).lower()), None)
+            if not thumbnail_link:
+                logging.warning(f"Failed to upload thumbnail for '{beatname}' to Dropbox. Using default thumbnail.")
+                thumbnail_link = channel_config.get('default_thumbnail_url', None)
         else:
             logging.warning(f"Thumbnail for '{beatname}' not found. Using default thumbnail.")
             thumbnail_link = channel_config.get('default_thumbnail_url', None)
