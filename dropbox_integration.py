@@ -6,11 +6,9 @@ import re
 
 from beatstars_config import Publisher
 
-DROPBOX_ACCESS_TOKEN = Publisher.dropbox_token
-
-def get_dropbox_service():
+def get_dropbox_service(access_token):
     try:
-        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+        dbx = dropbox.Dropbox(access_token)
         dbx.users_get_current_account()
         return dbx
     except AuthError:
@@ -53,8 +51,8 @@ def upload_file(dbx, file_path, folder_path):
             print(f"Error uploading file: {e}")
             return None
 
-def process_files_with_dropbox(folder_path, dropbox_folder_name):
-    dbx = get_dropbox_service()
+def process_files_with_dropbox(folder_path, dropbox_folder_name, token):
+    dbx = get_dropbox_service(token)
     if not dbx:
         print("Failed to initialize Dropbox service")
         return
@@ -66,7 +64,7 @@ def process_files_with_dropbox(folder_path, dropbox_folder_name):
 
     for filename in os.listdir(folder_path):
         try:
-            if filename.endswith(('.mp4', '.mov', '.jpg', '.jpeg', '.png', '.gif')):
+            if filename.endswith(('.mp4', '.mov', '.jpg', '.jpeg', '.png', '.gif', '.srt')):
                 file_path = os.path.join(folder_path, filename)
                 print(f"Processing file: {file_path}")
                 direct_link = upload_file(dbx, file_path, dropbox_folder_path)

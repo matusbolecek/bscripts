@@ -2,8 +2,8 @@ import os
 import json
 import pandas as pd
 from typing import Dict, List
-from dropbox_integration import process_files_with_dropbox
 
+from dropbox_integration import process_files_with_dropbox
 from beatstars_config import Publisher
 
 def load_config(script_dir: str, config_file: str = f"{Publisher.resources_path}/publisher.json") -> Dict:
@@ -147,7 +147,7 @@ def process_files(folder_path: str, export_folder: str, script_dir: str):
 
     try:
         dropbox_folder_name = "VideoUploads"  # You can change this name as needed
-        file_generator = process_files_with_dropbox(folder_path, dropbox_folder_name)
+        file_generator = process_files_with_dropbox(folder_path, dropbox_folder_name, Publisher.dropbox1)
         
         if file_generator is None:
             print("Error: Failed to initialize Dropbox upload process.")
