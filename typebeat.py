@@ -18,6 +18,35 @@ def get_valid_artist():
             return artist, f'{Typebeat.pictures}/{artist}', f'{Typebeat.videos}/{artist}'
         print('Not a valid option! Please try again.')
 
+def get_video_duration(video_path):
+    # Get the duration of a video file in seconds.
+    ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
+    try:
+        duration = float(subprocess.check_output(ffprobe_cmd).decode('utf-8').strip())
+        return duration
+    except subprocess.CalledProcessError:
+        return 0  # Return 0 if there's an error getting the duration
+
+def select_random_video(viddir, min_duration=4):
+    # Select a random video from the directory that is at least min_duration seconds long.
+    videos = [f for f in os.listdir(viddir) if not f.startswith('.') and f.endswith('.mp4')]
+    if not videos:
+        print(f"No videos found in {viddir}")
+        return None
+    
+    while videos:
+        video = random.choice(videos)
+        video_path = os.path.join(viddir, video)
+        duration = get_video_duration(video_path)
+        
+        if duration >= min_duration:
+            return video_path
+        else:
+            videos.remove(video)  # Remove the short video from the list
+    
+    print(f"No videos found with duration of at least {min_duration} seconds in {viddir}")
+    return None
+
 def count_files(directory, condition):
     return sum(1 for path in listdir_nohidden(directory) if condition(os.path.join(directory, path)))
 
@@ -121,13 +150,11 @@ def process_folder(folder_path, picdir, viddir, artist, num, total, beatlist):
             dest_picture_path = folder_path / picture
             shutil.copy2(picture_path, dest_picture_path)
 
-            # Select random video
-            videos = [f for f in os.listdir(viddir) if not f.startswith('.') and f.endswith('.mp4')]
-            if not videos:
-                print(f"No videos found in {viddir}")
+            # Select random video with minimum duration
+            video_path = select_random_video(viddir)
+            if not video_path:
+                print(f"Failed to find a suitable video. Skipping this folder.")
                 return
-            video = random.choice(videos)
-            video_path = os.path.join(viddir, video)
 
             print(f'Rendering video {num}/{total} (Attempt {attempt + 1})')
             export_name = export_folder / f"{master_file.stem}.mp4"
