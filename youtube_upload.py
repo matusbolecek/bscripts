@@ -1,12 +1,14 @@
 import os
 import json
 import csv
+import time
 import pandas as pd
 from typing import Dict, List, Tuple, Optional
 import subprocess
 import srt
 from datetime import timedelta, datetime
 import logging
+import shutil
 
 from dropbox_integration import process_files_with_dropbox
 from beatstars_config import Publisher, Youtube, Management
@@ -152,8 +154,40 @@ def upload_to_dropbox(file_path: str, dropbox_folder: str, dropbox_instance) -> 
     upload_result = next(file_generator, (None, None))
     return upload_result[1]  # Return the download link
 
+def extract_bpm_from_folder(folder_name: str) -> int:
+    # Example folder name: "@matejcikbeats - Beat Name 140 CMin_1"
+    parts = folder_name.split()
+    for part in parts:
+        if part.isdigit():
+            return int(part)
+    logging.warning(f"Could not extract BPM from folder name: {folder_name}")
+    return None
+
+def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
+    parts = folder_name.split()
+    for part in parts:
+        if part.isdigit():
+            return int(part)
+    logging.warning(f"Could not extract BPM from folder name: {folder_name}")
+    return None
+
+import os
+import time
+import shutil
+import logging
+from typing import Dict, List, Tuple, Optional
+
+def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
+    parts = folder_name.split()
+    for part in parts:
+        if part.isdigit():
+            return int(part)
+    logging.warning(f"Could not extract BPM from folder name: {folder_name}")
+    return None
+
 def process_folder(folder_path: str, channel_name: str, channel_config: Dict, global_config: Dict, beat_manager: BeatManager):
     logging.info(f"Processing folder: {folder_path}")
+    process_successful = False
 
     try:
         folder_name = os.path.basename(folder_path)
@@ -171,23 +205,41 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             logging.warning(f"Beat '{beatname}' not found in the database. Skipping this folder.")
             return
 
-        beat = beat_results[0]
-        if len(beat) < 5:
+        folder_bpm = extract_bpm_from_folder(folder_name)
+        if folder_bpm is None:
+            logging.warning(f"Could not extract BPM from folder '{folder_name}'. Skipping this folder.")
+            return
+
+        matching_beat = next((beat for beat in beat_results if len(beat) >= 5 and beat[4] == folder_bpm), None)
+
+        if not matching_beat:
+            logging.warning(f"No beat found with name '{beatname}' and BPM {folder_bpm}. Skipping this folder.")
+            return
+
+        if len(matching_beat) < 9:  # Updated to check for at least 9 elements
             logging.warning(f"Incomplete beat information for '{beatname}'. Skipping this folder.")
             return
 
         beat_info = {
-            'name': beat[1],
-            'collaborators': beat[2],
-            'key': beat[3],
-            'tempo': beat[4],
-            'purchase_link': beat[5] if len(beat) > 5 else None
+            'name': matching_beat[1],
+            'collaborators': matching_beat[2],
+            'key': matching_beat[3],
+            'tempo': matching_beat[4],
+            'purchase_link': matching_beat[8]  # Updated to index 8
         }
 
-        if not beat_info['purchase_link']:
+        logging.debug(f"Beat info: {beat_info}")
+
+        if not beat_info['purchase_link'] or beat_info['purchase_link'] == 'None':
+            logging.warning(f"No purchase link found for beat '{beatname}' in the database.")
             purchase_link = input(f"Enter purchase link for beat '{beatname}': ")
-            beat_manager.update_link(beat[0], purchase_link)  # Assuming the first element is the beat ID
+            beat_manager.update_link(matching_beat[0], purchase_link)  # Assuming the first element is the beat ID
             beat_info['purchase_link'] = purchase_link
+            logging.info(f"Updated purchase link for beat '{beatname}': {purchase_link}")
+
+        if not beat_info['purchase_link']:
+            logging.warning(f"No purchase link provided for beat '{beatname}'. Skipping this folder.")
+            return
 
         video_file = find_video_file(folder_path)
         if not video_file:
@@ -208,7 +260,24 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             logging.warning(f"Failed to generate SRT file for '{beatname}'. Skipping this folder.")
             return
 
-        subtitles_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(srt_path).lower()), None)
+        subtitles_link = None
+        max_retries = 3
+        retry_delay = 5  # seconds
+        for attempt in range(max_retries):
+            try:
+                subtitles_link = upload_to_dropbox(srt_path, dropbox_folder_name, Publisher.dropbox2)
+                if subtitles_link:
+                    break
+                else:
+                    raise Exception("SRT upload failed")
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logging.warning(f"Attempt {attempt + 1} failed to upload SRT file for '{beatname}'. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logging.error(f"Failed to upload SRT file for '{beatname}' after {max_retries} attempts. Skipping this folder.")
+                    return
+
         if not subtitles_link:
             logging.warning(f"Failed to upload SRT file for '{beatname}' to Dropbox. Skipping this folder.")
             return
@@ -228,9 +297,20 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
         save_to_csv([youtube_data], channel_name, os.path.dirname(os.path.abspath(__file__)))
 
         logging.info(f"Folder '{folder_path}' processed successfully.")
+        process_successful = True
 
     except Exception as e:
         logging.exception(f"Error processing folder '{folder_path}': {str(e)}")
+
+    finally:
+        if process_successful:
+            try:
+                shutil.rmtree(folder_path)
+                logging.info(f"Folder '{folder_path}' has been deleted after successful processing.")
+            except Exception as delete_error:
+                logging.error(f"Failed to delete folder '{folder_path}': {str(delete_error)}")
+        else:
+            logging.info(f"Folder '{folder_path}' was not deleted due to processing errors.")
 
 def save_to_csv(data: List[Dict], channel_name: str, script_dir: str):
     logging.debug(f"Attempting to save {len(data)} items to CSV")
