@@ -100,7 +100,11 @@ def generate_description(beat_info: Dict, channel_config: Dict, global_config: D
 def generate_youtube_data(channel_config: Dict, global_config: Dict, beat_info: Dict, video_link: str, subtitles_link: str, thumbnail_link: str) -> Dict:
     config = {**global_config, **channel_config}
     
-    yt_title = f'{config.get("Title", "")} "{beat_info["name"]}"'
+    if config.get("Title_suffix", "") != None:
+        yt_title = f'{config.get("Title", "")} "{beat_info["name"]}" {config.get("Title_suffix", "")}'
+    else:
+        yt_title = f'{config.get("Title", "")} "{beat_info["name"]}"'
+    
     description = generate_description(beat_info, channel_config, global_config, yt_title)
     
     return {
