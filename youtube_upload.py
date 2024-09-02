@@ -189,6 +189,13 @@ def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
     logging.warning(f"Could not extract BPM from folder name: {folder_name}")
     return None
 
+def get_dropbox_variable(config):
+    dropbox_version = config.get('Dropbox', 'dropbox2')  # Default to 'dropbox2' if not specified
+    if dropbox_version not in ['dropbox', 'dropbox2', 'dropbox3']:
+        raise ValueError(f"Invalid dropbox version: {dropbox_version}")
+    
+    return getattr(Publisher, dropbox_version)
+
 def process_folder(folder_path: str, channel_name: str, channel_config: Dict, global_config: Dict, beat_manager: BeatManager):
     logging.info(f"Processing folder: {folder_path}")
     process_successful = False
@@ -250,8 +257,9 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
             logging.warning(f"No video file found in folder '{folder_path}'. Skipping this folder.")
             return
 
+        dropbox_token = get_dropbox_variable(channel_config)
         dropbox_folder_name = "TypeBeat"
-        uploaded_files = list(process_files_with_dropbox(folder_path, dropbox_folder_name, Publisher.dropbox2))
+        uploaded_files = list(process_files_with_dropbox(folder_path, dropbox_folder_name, dropbox_token))
         
         video_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(video_file).lower()), None)
         if not video_link:
@@ -269,7 +277,7 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
         retry_delay = 5  # seconds
         for attempt in range(max_retries):
             try:
-                subtitles_link = upload_to_dropbox(srt_path, dropbox_folder_name, Publisher.dropbox2)
+                subtitles_link = upload_to_dropbox(srt_path, dropbox_folder_name, dropbox_token)
                 if subtitles_link:
                     break
                 else:
