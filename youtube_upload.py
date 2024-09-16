@@ -61,7 +61,7 @@ def generate_subtitles(video_path: str, beat_info: Dict, yt_title: str) -> Optio
             subtitles.extend([
                 srt.Subtitle(index=i*3+1, start=timedelta(seconds=i), end=timedelta(seconds=i+10), content=yt_title),
                 srt.Subtitle(index=i*3+2, start=timedelta(seconds=i+10), end=timedelta(seconds=i+20), content=f"{beat_info['key']} - {beat_info['tempo']} BPM"),
-                srt.Subtitle(index=i*3+3, start=timedelta(seconds=i+20), end=timedelta(seconds=i+30), content="Purchase this beat at the link in the description (Buy 2 Get 1 Free!)")
+                srt.Subtitle(index=i*3+3, start=timedelta(seconds=i+20), end=timedelta(seconds=i+30), content="Purchase this beat at the link in the description (Buy 2 Get 2 Free!)")
             ])
         
         srt_content = srt.compose(subtitles)
@@ -76,7 +76,7 @@ def generate_subtitles(video_path: str, beat_info: Dict, yt_title: str) -> Optio
 
 def generate_description(beat_info: Dict, channel_config: Dict, global_config: Dict, yt_title: str) -> str:
     description_parts = [
-        f"💰 Purchase This Beat (Untagged) | {beat_info.get('purchase_link', '')} \n\n",
+        f"💰 Purchase This Beat (Buy 2 Get 2 Free) | {beat_info.get('purchase_link', '')} \n\n",
         f"{global_config.get('Pack', '')} \n\n",
         f"BPM: {beat_info.get('tempo', '')}\n",
         f"KEY: {beat_info.get('key', '')}\n\n",
@@ -196,10 +196,10 @@ def get_dropbox_variable(config):
     
     return getattr(Publisher, dropbox_version)
 
-def process_folder(folder_path: str, channel_name: str, channel_config: Dict, global_config: Dict, beat_manager: BeatManager):
+def process_folder(folder_path: str, channel_name: str, channel_config: Dict, global_config: Dict, beat_manager: BeatManager) -> Optional[Dict]:
     logging.info(f"Processing folder: {folder_path}")
-    process_successful = False
-
+    youtube_data = None
+    
     try:
         folder_name = os.path.basename(folder_path)
         beatname = extract_beat_name(folder_name)
@@ -207,36 +207,36 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
 
         if not beatname:
             logging.warning(f"Could not extract a valid beat name from folder '{folder_name}'. Skipping this folder.")
-            return
+            return None
 
         beat_results = beat_manager.search_beats(beatname, search_by='name')
         logging.debug(f"Beat search results: {beat_results}")
 
         if not beat_results:
             logging.warning(f"Beat '{beatname}' not found in the database. Skipping this folder.")
-            return
+            return None
 
         folder_bpm = extract_bpm_from_folder(folder_name)
         if folder_bpm is None:
             logging.warning(f"Could not extract BPM from folder '{folder_name}'. Skipping this folder.")
-            return
+            return None
 
         matching_beat = next((beat for beat in beat_results if len(beat) >= 5 and beat[4] == folder_bpm), None)
 
         if not matching_beat:
             logging.warning(f"No beat found with name '{beatname}' and BPM {folder_bpm}. Skipping this folder.")
-            return
+            return None
 
-        if len(matching_beat) < 9:  # Updated to check for at least 9 elements
+        if len(matching_beat) < 9:
             logging.warning(f"Incomplete beat information for '{beatname}'. Skipping this folder.")
-            return
+            return None
 
         beat_info = {
             'name': matching_beat[1],
             'collaborators': matching_beat[2],
             'key': matching_beat[3],
             'tempo': matching_beat[4],
-            'purchase_link': matching_beat[8]  # Updated to index 8
+            'purchase_link': matching_beat[8]
         }
 
         logging.debug(f"Beat info: {beat_info}")
@@ -244,18 +244,18 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
         if not beat_info['purchase_link'] or beat_info['purchase_link'] == 'None':
             logging.warning(f"No purchase link found for beat '{beatname}' in the database.")
             purchase_link = input(f"Enter purchase link for beat '{beatname}': ")
-            beat_manager.update_link(matching_beat[0], purchase_link)  # Assuming the first element is the beat ID
+            beat_manager.update_link(matching_beat[0], purchase_link)
             beat_info['purchase_link'] = purchase_link
             logging.info(f"Updated purchase link for beat '{beatname}': {purchase_link}")
 
         if not beat_info['purchase_link']:
             logging.warning(f"No purchase link provided for beat '{beatname}'. Skipping this folder.")
-            return
+            return None
 
         video_file = find_video_file(folder_path)
         if not video_file:
             logging.warning(f"No video file found in folder '{folder_path}'. Skipping this folder.")
-            return
+            return None
 
         dropbox_token = get_dropbox_variable(channel_config)
         dropbox_folder_name = "TypeBeat"
@@ -264,13 +264,13 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
         video_link = next((link for name, link in uploaded_files if name.lower() == os.path.basename(video_file).lower()), None)
         if not video_link:
             logging.warning(f"Failed to upload video for '{beatname}' to Dropbox. Skipping this folder.")
-            return
+            return None
 
         yt_title = f"{channel_config.get('Title', '')} \"{beat_info['name']}\""
         srt_path = generate_subtitles(video_file, beat_info, yt_title)
         if not srt_path:
             logging.warning(f"Failed to generate SRT file for '{beatname}'. Skipping this folder.")
-            return
+            return None
 
         subtitles_link = None
         max_retries = 3
@@ -288,11 +288,11 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
                     time.sleep(retry_delay)
                 else:
                     logging.error(f"Failed to upload SRT file for '{beatname}' after {max_retries} attempts. Skipping this folder.")
-                    return
+                    return None
 
         if not subtitles_link:
             logging.warning(f"Failed to upload SRT file for '{beatname}' to Dropbox. Skipping this folder.")
-            return
+            return None
 
         thumbnail_file = find_thumbnail_file(folder_path)
         if thumbnail_file:
@@ -306,16 +306,15 @@ def process_folder(folder_path: str, channel_name: str, channel_config: Dict, gl
 
         youtube_data = generate_youtube_data(channel_config, global_config, beat_info, video_link, subtitles_link, thumbnail_link)
 
-        save_to_csv([youtube_data], channel_name, os.path.dirname(os.path.abspath(__file__)))
-
         logging.info(f"Folder '{folder_path}' processed successfully.")
-        process_successful = True
+        return youtube_data
 
     except Exception as e:
         logging.exception(f"Error processing folder '{folder_path}': {str(e)}")
+        return None
 
     finally:
-        if process_successful:
+        if youtube_data:
             try:
                 shutil.rmtree(folder_path)
                 logging.info(f"Folder '{folder_path}' has been deleted after successful processing.")
@@ -369,12 +368,21 @@ def main():
     
     beat_manager = BeatManager(Management.database_path_beats)
 
+    all_youtube_data = []
+
     for folder_name in os.listdir(root_folder):
         folder_path = os.path.join(root_folder, folder_name)
         if os.path.isdir(folder_path):
-            process_folder(folder_path, channel_name, channel_config, global_config, beat_manager)
+            youtube_data = process_folder(folder_path, channel_name, channel_config, global_config, beat_manager)
+            if youtube_data:
+                all_youtube_data.append(youtube_data)
 
     beat_manager.close()
+
+    if all_youtube_data:
+        save_to_csv(all_youtube_data, channel_name, os.path.dirname(os.path.abspath(__file__)))
+    else:
+        logging.warning("No data was processed successfully. No CSV file will be generated.")
 
 if __name__ == "__main__":
     main()
