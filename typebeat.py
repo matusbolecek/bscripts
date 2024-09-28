@@ -19,7 +19,6 @@ def get_valid_artist():
         print('Not a valid option! Please try again.')
 
 def get_video_duration(video_path):
-    # Get the duration of a video file in seconds.
     ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
     try:
         duration = float(subprocess.check_output(ffprobe_cmd).decode('utf-8').strip())
@@ -28,7 +27,6 @@ def get_video_duration(video_path):
         return 0  # Return 0 if there's an error getting the duration
 
 def select_random_video(viddir, min_duration=4):
-    # Select a random video from the directory that is at least min_duration seconds long.
     videos = [f for f in os.listdir(viddir) if not f.startswith('.') and f.endswith('.mp4')]
     if not videos:
         print(f"No videos found in {viddir}")
