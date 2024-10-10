@@ -91,7 +91,7 @@ def generate_description(beat_info: Dict, channel_config: Dict, global_config: D
         f"{yt_title}\n\n",
         f"{channel_config.get('Gpt', '')}\n\n",
         "Some other ways I would describe this beat:\n",
-        channel_config.get('Tags', '')
+        channel_config.get('Tags2', '')
     ]
 
     # Join all parts without any additional newlines
