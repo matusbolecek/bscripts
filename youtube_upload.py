@@ -158,15 +158,6 @@ def upload_to_dropbox(file_path: str, dropbox_folder: str, dropbox_instance) -> 
     upload_result = next(file_generator, (None, None))
     return upload_result[1]  # Return the download link
 
-def extract_bpm_from_folder(folder_name: str) -> int:
-    # Example folder name: "@matejcikbeats - Beat Name 140 CMin_1"
-    parts = folder_name.split()
-    for part in parts:
-        if part.isdigit():
-            return int(part)
-    logging.warning(f"Could not extract BPM from folder name: {folder_name}")
-    return None
-
 def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
     parts = folder_name.split()
     for part in parts:
@@ -175,20 +166,7 @@ def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
     logging.warning(f"Could not extract BPM from folder name: {folder_name}")
     return None
 
-import os
-import time
-import shutil
-import logging
-from typing import Dict, List, Tuple, Optional
-
-def extract_bpm_from_folder(folder_name: str) -> Optional[int]:
-    parts = folder_name.split()
-    for part in parts:
-        if part.isdigit():
-            return int(part)
-    logging.warning(f"Could not extract BPM from folder name: {folder_name}")
-    return None
-
+# Rework this
 def get_dropbox_variable(config):
     dropbox_version = config.get('Dropbox', 'dropbox2')  # Default to 'dropbox2' if not specified
     if dropbox_version not in ['dropbox', 'dropbox2', 'dropbox3']:

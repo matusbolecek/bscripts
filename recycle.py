@@ -3,22 +3,18 @@ from typebeat import *
 def recycle(folder_path, picdir, viddir, artist, num, total, beatlist):
     folder_path = Path(folder_path)
 
-    # Find master file
     master_files = list(folder_path.glob('*.wav'))
     if not master_files:
         print(f"No master file found in {folder_path}")
         return
     master_file = master_files[0]
 
-    # Create export folder for this beat
     export_folder = Path(Typebeat.export_directory) / artist / master_file.stem
     export_folder.mkdir(parents=True, exist_ok=True)
 
-    # Render video
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
-            # Select and copy random picture to the folder_path
             pictures = [f for f in os.listdir(picdir) if not f.startswith('.')]
             if not pictures:
                 print(f"No pictures found in {picdir}")
@@ -28,7 +24,6 @@ def recycle(folder_path, picdir, viddir, artist, num, total, beatlist):
             dest_picture_path = folder_path / picture
             shutil.copy2(picture_path, dest_picture_path)
 
-            # Select random video with minimum duration
             video_path = select_random_video(viddir)
             if not video_path:
                 print(f"Failed to find a suitable video. Skipping this folder.")
@@ -37,19 +32,16 @@ def recycle(folder_path, picdir, viddir, artist, num, total, beatlist):
             print(f'Rendering video {num}/{total} (Attempt {attempt + 1})')
             export_name = export_folder / f"{master_file.stem}.mp4"
             
-            # Get audio duration
             ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(master_file)]
             duration = float(subprocess.check_output(ffprobe_cmd).decode('utf-8').strip())
             
             create_looping_video(video_path, str(export_name), str(master_file), str(Typebeat.watermark_black), duration)
             print('Video rendering done!')
 
-            # Create thumbnail
             thumbnail_path = export_folder / f"{master_file.stem}_thumbnail.jpg"
             create_thumbnail(str(dest_picture_path), str(Typebeat.watermark_black), str(thumbnail_path))
             print('Thumbnail created!')
 
-            # Move picture to archive
             archive_dir = Path(picdir).parent / 'archive' / artist
             archive_dir.mkdir(parents=True, exist_ok=True)
             shutil.move(picture_path, archive_dir / picture)
@@ -64,7 +56,6 @@ def recycle(folder_path, picdir, viddir, artist, num, total, beatlist):
             else:
                 print("Retrying with a different video and picture...")
 
-    # Write filename to global filename list
     beatlist.append(master_file.stem)
 
 if __name__ == "__main__":
@@ -72,10 +63,10 @@ if __name__ == "__main__":
     beat_names = []
 
     rootdir = input('Input the root directory path: ')
-    rootdir = rootdir.strip("'\"")  # Remove any surrounding quotes
-    rootdir = rootdir.replace("\\ ", " ")  # Replace escaped spaces with actual spaces
-    rootdir = os.path.expanduser(rootdir)  # Expand user directory if present (e.g., ~)
-    rootdir = os.path.abspath(rootdir)  # Convert to absolute path
+    rootdir = rootdir.strip("'\"")
+    rootdir = rootdir.replace("\\ ", " ")
+    rootdir = os.path.expanduser(rootdir)
+    rootdir = os.path.abspath(rootdir)
 
     if not os.path.exists(rootdir):
         print(f"The directory '{rootdir}' does not exist.")
