@@ -11,7 +11,7 @@ from beatstars import listdir_nohidden
 from beat_management import BeatManager
 
 def get_valid_artist():
-    artists = ['nardo', 'future', 'southside', 'lone']
+    artists = ['nardo', 'future', 'southside', 'rob49']
     while True:
         artist = input(f"Choose an artist ({' / '.join(artists)}): ")
         if artist in artists:
@@ -203,7 +203,6 @@ if __name__ == "__main__":
     artist, picdir, viddir = get_valid_artist()
     beat_names = []
 
-    # Improved input handling for paths with escaped spaces
     rootdir = input('Input the root directory path: ')
     rootdir = rootdir.strip("'\"")  # Remove any surrounding quotes
     rootdir = rootdir.replace("\\ ", " ")  # Replace escaped spaces with actual spaces
