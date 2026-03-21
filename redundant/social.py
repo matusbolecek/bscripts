@@ -9,26 +9,29 @@ import shlex
 from beat_management import BeatManager, Beat
 from beatstars_config import Management
 
+
 def process_video(video_path, beat_info, resource_folder, export_folder):
     # Extract necessary information from beat_info
     beat_name = beat_info[1]
     bpm = beat_info[4]
-    
+
     # Calculate timing
     beat_time = float((1 / (int(bpm) / 60)) * 96)
     intro_delay = float((1 / (int(bpm) / 60)) * 16)
-    
+
     # Get silence end time
     silence_end = get_silence_end(video_path)
-    
+
     # Process each picture
     for picture_path in get_resource_files(resource_folder):
         output_path = export_folder / f"{beat_name}_{Path(picture_path).stem}.mp4"
-        if create_video(video_path, picture_path, output_path, silence_end, intro_delay, beat_time):
+        if create_video(
+            video_path, picture_path, output_path, silence_end, intro_delay, beat_time
+        ):
             print(f"Successfully created: {output_path}")
         else:
             print(f"Failed to create: {output_path}")
-    
+
     # Remove original video file
     try:
         os.remove(video_path)
@@ -36,18 +39,33 @@ def process_video(video_path, beat_info, resource_folder, export_folder):
     except OSError as e:
         print(f"Error removing original video: {e}")
 
+
 def get_silence_end(video_path):
     try:
         ffmpeg_temp = f'ffmpeg -i "{video_path}" -ab 320k "social_temp.mp3"'
         subprocess.run(ffmpeg_temp, shell=True, check=True)
-        
-        ffmpeg_command = ["ffmpeg", "-i", "social_temp.mp3", "-af", "silencedetect=n=-50dB:d=1", "-f", "null", "-"]
-        process = subprocess.Popen(ffmpeg_command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+
+        ffmpeg_command = [
+            "ffmpeg",
+            "-i",
+            "social_temp.mp3",
+            "-af",
+            "silencedetect=n=-50dB:d=1",
+            "-f",
+            "null",
+            "-",
+        ]
+        process = subprocess.Popen(
+            ffmpeg_command,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+        )
         stdout_output, stderr_output = process.communicate()
-        
+
         os.remove("social_temp.mp3")
-        
-        pattern = r'silence_end:\s*(\d+\.\d+)'
+
+        pattern = r"silence_end:\s*(\d+\.\d+)"
         match = re.search(pattern, stderr_output)
         return float(match.group(1)) if match else 0
     except subprocess.CalledProcessError as e:
@@ -57,10 +75,18 @@ def get_silence_end(video_path):
         print(f"OS error in get_silence_end: {e}")
         return 0
 
-def get_resource_files(resource_folder):
-    return [f for f in resource_folder.iterdir() if f.is_file() and not f.name.startswith('.')]
 
-def create_video(video_path, picture_path, output_path, silence_end, intro_delay, beat_time):
+def get_resource_files(resource_folder):
+    return [
+        f
+        for f in resource_folder.iterdir()
+        if f.is_file() and not f.name.startswith(".")
+    ]
+
+
+def create_video(
+    video_path, picture_path, output_path, silence_end, intro_delay, beat_time
+):
     try:
         temp_output = f"{output_path}_temp.mp4"
         filter_complex = (
@@ -70,34 +96,47 @@ def create_video(video_path, picture_path, output_path, silence_end, intro_delay
 
         ffmpeg_command = [
             "ffmpeg",
-            "-ss", f"{silence_end + intro_delay - 0.1}",
-            "-to", f"{beat_time + silence_end}",
-            "-i", str(video_path),
-            "-i", str(picture_path),
-            "-filter_complex", filter_complex,
-            "-c:v", "libx264",
-            "-crf", "17",
-            "-preset", "fast",
-            "-b:a", "320k",
-            "-r", "60",
-            temp_output
+            "-ss",
+            f"{silence_end + intro_delay - 0.1}",
+            "-to",
+            f"{beat_time + silence_end}",
+            "-i",
+            str(video_path),
+            "-i",
+            str(picture_path),
+            "-filter_complex",
+            filter_complex,
+            "-c:v",
+            "libx264",
+            "-crf",
+            "17",
+            "-preset",
+            "fast",
+            "-b:a",
+            "320k",
+            "-r",
+            "60",
+            temp_output,
         ]
-        
+
         print("Executing FFmpeg command:")
         print(" ".join(shlex.quote(str(arg)) for arg in ffmpeg_command))
-        
+
         subprocess.run(ffmpeg_command, check=True)
-        
+
         ffmpeg_fin_command = [
             "ffmpeg",
-            "-ss", "0.1",
-            "-i", temp_output,
-            "-c", "copy",
-            output_path
+            "-ss",
+            "0.1",
+            "-i",
+            temp_output,
+            "-c",
+            "copy",
+            output_path,
         ]
-        
+
         subprocess.run(ffmpeg_fin_command, check=True)
-        
+
         os.remove(temp_output)
         return True
     except subprocess.CalledProcessError as e:
@@ -108,14 +147,15 @@ def create_video(video_path, picture_path, output_path, silence_end, intro_delay
         print(f"OS error in create_video: {e}")
         return False
 
+
 def main():
-    rootdir = input('Input the root directory path: ').strip("'\"")
-    video_folder = Path(f'{rootdir}/videos')
-    resource_folder = Path(f'{rootdir}/resources')
-    export_folder = Path(f'{rootdir}/export')
+    rootdir = input("Input the root directory path: ").strip("'\"")
+    video_folder = Path(f"{rootdir}/videos")
+    resource_folder = Path(f"{rootdir}/resources")
+    export_folder = Path(f"{rootdir}/export")
 
     if not video_folder.exists() or not resource_folder.exists():
-        print('Video folder or Resource folder does not exist!')
+        print("Video folder or Resource folder does not exist!")
         sys.exit()
 
     # Create export folder if it doesn't exist
@@ -125,11 +165,13 @@ def main():
 
     for folder in video_folder.iterdir():
         if folder.is_dir():
-            video_file = next((f for f in folder.iterdir() if f.suffix == '.mov'), None)
+            video_file = next((f for f in folder.iterdir() if f.suffix == ".mov"), None)
             if video_file:
                 beat_info = beat_manager.search_beats(folder.name)
                 if beat_info:
-                    process_video(video_file, beat_info[0], resource_folder, export_folder)
+                    process_video(
+                        video_file, beat_info[0], resource_folder, export_folder
+                    )
                     beat_manager.update_social_media_video_flag(beat_info[0][0])
                     print(f"Updated social media flag for: {folder.name}")
                 else:
@@ -139,5 +181,7 @@ def main():
 
     beat_manager.close()
 
+
 if __name__ == "__main__":
     main()
+
