@@ -2,6 +2,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Optional, List
 import os
+from pathlib import Path
 
 from config import DBConfig
 
@@ -24,8 +25,8 @@ class Beat:
 
 
 class BeatManager:
-    def __init__(self, db_name):
-        self.conn = sqlite3.connect(db_name)
+    def __init__(self, db: Path):
+        self.conn = sqlite3.connect(db)
         self.cursor = self.conn.cursor()
         self.create_table()
         self.config = DBConfig()
@@ -307,7 +308,7 @@ class BeatManager:
 
 
 def main():
-    cfg = Config()
+    cfg = DBConfig()
     beat_manager = BeatManager(cfg.db_beats)
     loop_manager = BeatManager(cfg.db_loops)
 
