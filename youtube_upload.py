@@ -64,10 +64,13 @@ class Uploader:
 
             srt_content = srt.compose(subtitles)
             srt_path = video_path.rsplit(".", 1)[0] + ".srt"
+
             with open(srt_path, "w") as f:
                 f.write(srt_content)
+
             logging.info(f"Subtitles generated successfully: {srt_path}")
-            return srt_path
+
+            self.subtitles_path = srt_path
 
         except Exception as e:
             logging.exception(f"Error generating subtitles: {str(e)}")
@@ -90,8 +93,6 @@ class Uploader:
             "TAGS (IGNORE):\n\n",
             f"{yt_title.upper()}\n\n",
             f"{channel_config.get('Gpt', '')}\n\n",
-            "Some other ways I would describe this beat:\n",
-            channel_config.get("Tags2", ""),
         ]
 
         # Join all parts without any additional newlines
