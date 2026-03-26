@@ -5,7 +5,6 @@ import os
 import sys
 
 
-# File utils
 def listdir_nohidden(path: Path) -> list[Path]:
     return [p for p in path.iterdir() if not p.name.startswith(".")]
 
@@ -28,7 +27,6 @@ def bpm_convert(bpm: int, bars: int) -> float:
     return (60 / bpm) * 4 * bars
 
 
-# TODO CONFS read of selfs (either through a pass from the call or here, but prolly pass)
 class FFcomms:
     def __init__(self, watermark_black):
         self.watermark_black = watermark_black
@@ -65,7 +63,7 @@ class FFcomms:
         return silence_end
 
     @staticmethod
-    def get_duration(video_path):
+    def get_duration(video_path) -> float:
         ffprobe_cmd = [
             "ffprobe",
             "-v",
@@ -78,19 +76,16 @@ class FFcomms:
         ]
 
         try:
-            duration = float(
-                subprocess.check_output(ffprobe_cmd).decode("utf-8").strip()
-            )
-            return duration
+            return float(subprocess.check_output(ffprobe_cmd).decode("utf-8").strip())
 
         except subprocess.CalledProcessError:
-            return 0  # Return 0 if there's an error getting the duration
+            return 0
 
-    def looping(self, input_path, audio_file, duration, output_path):
+    def looping(self, input_path, output_path, audio_file, duration):
         return [
-            "self, ffmpeg",
+            "ffmpeg",
             "-stream_loop",
-            "-1",  # Loop the input video
+            "-1",
             "-i",
             input_path,
             "-i",
@@ -108,15 +103,15 @@ class FFcomms:
             "1:a",
             "-shortest",
             "-c:v",
-            "h264_videotoolbox",
-            "-c:a",
+            "libx264",
+            "-preset",
+            "fast" "-c:a",
             "aac",
             "-t",
             str(duration),
             output_path,
         ]
 
-    # TODO: I have no clue what the args were, clarify this!
     def thumbnail(self, picture_file, thumbnail_file):
         return [
             "ffmpeg",
@@ -143,20 +138,12 @@ class UserPath:
         if not os.path.exists(folder):
             print(f"The directory '{folder}' does not exist.")
             return False
-
         return True
 
     def _clean_path(self):
-        # Remove any surrounding quotes
         self.path = str(self.path).strip("'\"")
-
-        # Replace escaped spaces with actual spaces
         self.path = self.path.replace("\\ ", " ")
-
-        # Expand user directory if present (e.g., ~)
         self.path = os.path.expanduser(self.path)
-
-        # Convert to absolute path
         self.path = os.path.abspath(self.path)
 
     def read_while(self):

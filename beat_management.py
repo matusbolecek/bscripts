@@ -6,13 +6,6 @@ from pathlib import Path
 
 from config import DBConfig
 
-# this has to be implemented !!!
-# if config not set in the constructor, it will just run a method that works on it (or fails - up for consideration)
-# need config.prod_name, which returns the default prod name
-# need config.db_beats, config.db_loops, which return the database beat paths
-
-# parse filename most likely needs checks, as there is user input handled
-
 
 @dataclass
 class Beat:
@@ -40,38 +33,26 @@ class BeatManager:
          key TEXT,
          tempo INTEGER,
          pack TEXT,
-         link TEXT,
+         link TEXT)
         """)
         self.conn.commit()
 
     def beat_exists(self, name: str) -> bool:
         self.cursor.execute("SELECT COUNT(*) FROM beats WHERE name = ?", (name,))
-        count = self.cursor.fetchone()[0]
-        return count > 0
+        return self.cursor.fetchone()[0] > 0
 
     def add_beat(self, beat: Beat):
         if self.beat_exists(beat.name):
             print(
                 f"Warning: A beat with the name '{beat.name}' already exists in the database."
             )
-            user_choice = input("Do you want to add this beat anyway? (y/N): ").lower()
-            if user_choice != "y":
+            if input("Do you want to add this beat anyway? (y/N): ").lower() != "y":
                 print("Beat not added.")
                 return
 
         self.cursor.execute(
-            """
-        INSERT INTO beats (name, collaborators, key, tempo, pack, tutorial_made, social_media_video_made, link, typebeat_uploaded)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                beat.name,
-                beat.collaborators,
-                beat.key,
-                beat.tempo,
-                beat.pack,
-                beat.link,
-            ),
+            "INSERT INTO beats (name, collaborators, key, tempo, pack, link) VALUES (?, ?, ?, ?, ?, ?)",
+            (beat.name, beat.collaborators, beat.key, beat.tempo, beat.pack, beat.link),
         )
         self.conn.commit()
         print(f"Beat '{beat.name}' added successfully.")
@@ -90,6 +71,7 @@ class BeatManager:
             raise ValueError(
                 "Invalid input. Expected an integer ID or a tuple of (start, end) IDs."
             )
+
         self.conn.commit()
 
     def get_beat(self, beat_id):
@@ -114,6 +96,7 @@ class BeatManager:
         self.cursor.execute(
             'SELECT id, name FROM beats WHERE link IS NULL OR link = ""'
         )
+
         return self.cursor.fetchall()
 
     def add_links_interactively(self):
@@ -123,9 +106,7 @@ class BeatManager:
             print("All beats already have links.")
             return
 
-        print(
-            "Adding links to beats. Type '!exit' to stop the process, or '!skip' to skip a beat."
-        )
+        print("Adding links to beats. Type '!exit' to stop, or '!skip' to skip a beat.")
 
         for beat_id, beat_name in beats_without_links:
             while True:
@@ -159,11 +140,10 @@ class BeatManager:
             return f"{note} Minor"
         elif mode.lower() == "maj":
             return f"{note} Major"
-        else:
-            return short_key  # Return original if not recognized
+        return short_key
 
     @classmethod
-    def parse_filename(cls, filename: str) -> Beat:
+    def parse_filename(cls, filename: str) -> "Beat":
         parts = filename.split(" - ")
         collaborators_part = parts[0]
         rest = parts[1]
@@ -188,8 +168,7 @@ class BeatManager:
         print(f"Added {len(filenames)} beats to the database.")
 
     def list_beats(self):
-        all_beats = self.get_all_beats()
-        for beat in all_beats:
+        for beat in self.get_all_beats():
             print(beat)
 
     def add_beat_by_properties(self):
@@ -204,30 +183,23 @@ class BeatManager:
         key = input("Enter key: ")
         tempo = int(input("Enter BPM: "))
 
-        pack = input("Enter pack (or press Enter for None): ")
-        if not pack:
-            pack = None
+        pack = input("Enter pack (or press Enter for None): ") or None
+        link = input("Enter link (or press Enter for None): ") or None
 
-        link = input("Enter link (or press Enter for None): ")
-        if not link:
-            link = None
-
-        beat = Beat(
-            name=name,
-            collaborators=collaborators,
-            key=key,
-            tempo=tempo,
-            pack=pack,
-            link=link,
+        self.add_beat(
+            Beat(
+                name=name,
+                collaborators=collaborators,
+                key=key,
+                tempo=tempo,
+                pack=pack,
+                link=link,
+            )
         )
-        self.add_beat(beat)
-        print("Beat added successfully.")
 
     def add_beat_by_filename(self):
         filename = input("Enter filename: ")
-        beat = self.parse_filename(filename)
-        self.add_beat(beat)
-        print("Beat added successfully.")  # maybe check if this can not break
+        self.add_beat(self.parse_filename(filename))
 
     def close(self):
         self.conn.close()
@@ -259,42 +231,34 @@ class BeatManager:
     def parse_loop_filename(self, filename: str) -> Beat:
         parts = filename.rsplit(".", 1)[0].split()
 
-        # Extract key (always the last part before prodname or collaborators)
         key_index = next(
             i for i in range(len(parts) - 1, -1, -1) if parts[i].lower().endswith("min")
         )
         key = parts[key_index]
-
-        # Extract tempo (always before the key)
         tempo = int(parts[key_index - 1])
 
-        # Extract collaborators
         collaborators = self.config.prodname
         if "x" in parts:
             x_index = parts.index("x")
             collaborators = ", ".join(
-                [
-                    part.strip("@")
-                    for part in parts[x_index:]
-                    if part != "x" and not part.isdigit() and part != key
-                ]
+                part.strip("@")
+                for part in parts[x_index:]
+                if part != "x" and not part.isdigit() and part != key
             )
 
-        # Extract name (everything before tempo)
         name = " ".join(parts[: key_index - 1])
-
         return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
 
     def add_loops_from_filenames(self, filenames: List[str]):
         added_count = 0
         for filename in filenames:
             try:
-                loop = self.parse_loop_filename(filename)
-                self.add_beat(loop)
+                self.add_beat(self.parse_loop_filename(filename))
                 added_count += 1
+
             except Exception as e:
                 print(f"Error processing file '{filename}': {str(e)}")
-                print(f"Parsed parts: {filename.rsplit('.', 1)[0].split()}")
+
         print(f"Added {added_count} loops to the database.")
 
     def add_beats_from_file(self, file_path: str, item_type: str):
@@ -313,7 +277,6 @@ def main():
     loop_manager = BeatManager(cfg.db_loops)
 
     print("Welcome to the Beat and Loop Management System!")
-    print("Available commands: b* (for beats), l* (for loops), exit")
 
     while True:
         command = input("Enter command (beats/loops/exit): ").lower()
@@ -321,7 +284,6 @@ def main():
         if command == "exit":
             beat_manager.close()
             loop_manager.close()
-            print("Exiting Beat and Loop Management System. Goodbye!")
             break
 
         elif command.startswith("b"):
@@ -337,14 +299,7 @@ def main():
 def manage_items(manager, item_type):
     print(f"{item_type} Management")
     print(
-        "Available commands:" "list,",
-        "add_properties,",
-        "add_filename," "add_file_list,",
-        "remove,",
-        "add_links,",
-        "search,",
-        "update_typebeat,",
-        "back",
+        "Available commands: list, add_properties, add_filename, add_file_list, remove, add_links, search, back"
     )
 
     while True:
@@ -371,7 +326,6 @@ def manage_items(manager, item_type):
                 file_path = input(
                     "Enter the path to the file containing the list of filenames: "
                 )
-
                 if os.path.exists(file_path):
                     manager.add_beats_from_file(file_path, item_type)
                 else:
@@ -408,6 +362,7 @@ def manage_items(manager, item_type):
                     or "name"
                 )
 
+                has_pack = False
                 if search_by == "pack":
                     has_pack = (
                         input(
@@ -415,16 +370,11 @@ def manage_items(manager, item_type):
                         ).lower()
                         == "y"
                     )
-                else:
-                    has_pack = False
 
                 results = manager.search_beats(query, search_by, has_pack)
-
                 if results:
-                    print("Search results:")
                     for item in results:
                         print(item)
-
                 else:
                     print(f"No {item_type.lower()}s found matching that criteria.")
 
