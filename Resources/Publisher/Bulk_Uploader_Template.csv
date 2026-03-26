@@ -1,6 +1,0 @@
-Text,Link,Year,Month (1 to 12),Date,Hour (From 0 to 23),Minutes,Queue Schedule,Video Title,Post Type,Image URL,Alt Texts,Video URL,No. of Repetitions (From 1-10 OR 'FOREVER'),Time Gap between Repetitions (Hours: From 1-24 OR 'WEEKLY' OR 'MONTHLY' OR 'YEARLY'),Google Business Profile Type,Google Business Profile URL,Pinterest Title,Pinterest Link,Instagram First Comment,Facebook First Comment,LinkedIn First Comment,TikTok First Comment,Document URL,Document Title
-"""Its not what you sell that matters as much as how you sell it!"" This post will repeat 2 times with a difference of 6 hours.",,2023,11,11,11,0,,,,,,,2,6,,,,,,,,,,
-"""We are not a product of our circumstances but a product of our decisions."" This post will repeat FOREVER with a YEARLY time gap.",,2023,11,12,11,15,,,,,,,FOREVER,YEARLY,,,,,,,,,,
-"""Make every interaction count, even the small ones. They are all relevant."" This post will repeat FOREVER with a WEEKLY time gap.",,2023,11,13,11,30,,,,,,,FOREVER,Weekly,,,,,,,,,,
-This bulk upload post will follow the rules of Auto-Queue Next,,,,,,,QNEXT,,,,,,,,,,,,,,,,,
-This bulk upload post will follow the rules of Auto-Queue Last,,,,,,,QLAST,,,,,,,,,,,,,,,,,
