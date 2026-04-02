@@ -1,6 +1,5 @@
 import os
 import csv
-import time
 import logging
 import shutil
 from pathlib import Path

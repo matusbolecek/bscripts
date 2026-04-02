@@ -4,6 +4,7 @@ import os
 import subprocess
 import shutil
 import random
+from typing import Optional
 
 from utils import listdir_nohidden, count_files, FFcomms, UserPath
 from beat_management import BeatManager
@@ -25,7 +26,7 @@ class Process:
 
         self.beatlist = []
 
-    def get_valid_artist(self):
+    def get_valid_artist(self) -> None:
         while True:
             artist = input(f"Choose an artist ({' / '.join(self.artists)}): ")
             if artist in self.artists:
@@ -36,7 +37,7 @@ class Process:
 
             print("Not a valid option! Please try again.")
 
-    def _select_random_video(self, viddir, min_duration=4):
+    def _select_random_video(self, viddir, min_duration=4) -> Optional[Path]:
         videos = [
             f
             for f in os.listdir(viddir)
@@ -61,7 +62,7 @@ class Process:
 
         return None
 
-    def check_picture_count(self, root_dir):
+    def check_picture_count(self, root_dir) -> None:
         pic_count = count_files(self.config.pics_path, os.path.isfile)
         folder_count = count_files(root_dir, os.path.isdir)
 
@@ -71,21 +72,23 @@ class Process:
             )
             sys.exit(1)
 
-    def _check_duplicate_in_database(self, filename):
+    def _check_duplicate_in_database(self, filename) -> bool:
         return self.manager.beat_exists(filename)
 
-    def _run(self, command):
+    def _run(self, command) -> None:
         subprocess.run(
             command, check=True, stderr=subprocess.PIPE, universal_newlines=True
         )
 
-    def _create_looping_video(self, input_path, output_path, audio_file, duration):
+    def _create_looping_video(
+        self, input_path, output_path, audio_file, duration
+    ) -> None:
         self._run(self.ffcomm.looping(input_path, output_path, audio_file, duration))
 
-    def create_thumbnail(self, picture_file, thumbnail_file):
+    def create_thumbnail(self, picture_file, thumbnail_file) -> None:
         self._run(self.ffcomm.thumbnail(picture_file, thumbnail_file))
 
-    def process_folder(self, folder_path, num, total):
+    def process_folder(self, folder_path, num, total) -> None:
         folder_path = Path(folder_path)
 
         for file in folder_path.glob("*Current.wav"):
@@ -198,7 +201,7 @@ class Process:
 
         self.beatlist.append(master_file.stem)
 
-    def data_write(self):
+    def data_write(self) -> None:
         self.manager.add_beats_from_filenames(self.beatlist)
         self.manager.close()
 

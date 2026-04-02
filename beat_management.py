@@ -24,7 +24,7 @@ class BeatManager:
         self.create_table()
         self.config = DBConfig()
 
-    def create_table(self):
+    def create_table(self) -> None:
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS beats
         (id INTEGER PRIMARY KEY,
@@ -37,11 +37,22 @@ class BeatManager:
         """)
         self.conn.commit()
 
+    def _row_to_beat(self, row: tuple) -> Beat:
+        _, name, collaborators, key, tempo, pack, link = row
+        return Beat(
+            name=name,
+            collaborators=collaborators,
+            key=key,
+            tempo=tempo,
+            pack=pack,
+            link=link,
+        )
+
     def beat_exists(self, name: str) -> bool:
         self.cursor.execute("SELECT COUNT(*) FROM beats WHERE name = ?", (name,))
         return self.cursor.fetchone()[0] > 0
 
-    def add_beat(self, beat: Beat):
+    def add_beat(self, beat: Beat) -> None:
         if self.beat_exists(beat.name):
             print(
                 f"Warning: A beat with the name '{beat.name}' already exists in the database."
@@ -57,7 +68,7 @@ class BeatManager:
         self.conn.commit()
         print(f"Beat '{beat.name}' added successfully.")
 
-    def remove_beat(self, beat_id_or_range):
+    def remove_beat(self, beat_id_or_range: int | tuple[int, int]) -> None:
         if isinstance(beat_id_or_range, int):
             self.cursor.execute("DELETE FROM beats WHERE id = ?", (beat_id_or_range,))
 
@@ -74,32 +85,33 @@ class BeatManager:
 
         self.conn.commit()
 
-    def get_beat(self, beat_id):
+    def get_beat(self, beat_id: int) -> Beat | None:
         self.cursor.execute("SELECT * FROM beats WHERE id = ?", (beat_id,))
-        return self.cursor.fetchone()
+        row = self.cursor.fetchone()
 
-    def update_pack(self, beat_id, pack_name):
+        return self._row_to_beat(row) if row else None
+
+    def update_pack(self, beat_id: int, pack_name: str) -> None:
         self.cursor.execute(
             "UPDATE beats SET pack = ? WHERE id = ?", (pack_name, beat_id)
         )
         self.conn.commit()
 
-    def update_link(self, beat_id, link):
+    def update_link(self, beat_id: int, link: str) -> None:
         self.cursor.execute("UPDATE beats SET link = ? WHERE id = ?", (link, beat_id))
         self.conn.commit()
 
-    def get_all_beats(self):
+    def get_all_beats(self) -> list[Beat]:
         self.cursor.execute("SELECT * FROM beats")
-        return self.cursor.fetchall()
+        return [self._row_to_beat(row) for row in self.cursor.fetchall()]
 
-    def get_beats_without_links(self):
+    def get_beats_without_links(self) -> list[tuple[int, str]]:
         self.cursor.execute(
             'SELECT id, name FROM beats WHERE link IS NULL OR link = ""'
         )
-
         return self.cursor.fetchall()
 
-    def add_links_interactively(self):
+    def add_links_interactively(self) -> None:
         beats_without_links = self.get_beats_without_links()
 
         if not beats_without_links:
@@ -143,7 +155,7 @@ class BeatManager:
         return short_key
 
     @classmethod
-    def parse_filename(cls, filename: str) -> "Beat":
+    def parse_filename(cls, filename: str) -> Beat:
         parts = filename.split(" - ")
         collaborators_part = parts[0]
         rest = parts[1]
@@ -161,17 +173,17 @@ class BeatManager:
 
         return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
 
-    def add_beats_from_filenames(self, filenames: List[str]):
+    def add_beats_from_filenames(self, filenames: List[str]) -> None:
         for filename in filenames:
             beat = self.parse_filename(filename)
             self.add_beat(beat)
         print(f"Added {len(filenames)} beats to the database.")
 
-    def list_beats(self):
+    def list_beats(self) -> None:
         for beat in self.get_all_beats():
             print(beat)
 
-    def add_beat_by_properties(self):
+    def add_beat_by_properties(self) -> None:
         name = input("Enter beat name: ")
 
         collaborators = input(
@@ -197,14 +209,16 @@ class BeatManager:
             )
         )
 
-    def add_beat_by_filename(self):
+    def add_beat_by_filename(self) -> None:
         filename = input("Enter filename: ")
         self.add_beat(self.parse_filename(filename))
 
-    def close(self):
+    def close(self) -> None:
         self.conn.close()
 
-    def search_beats(self, query, search_by="name", has_pack=False):
+    def search_beats(
+        self, query: str, search_by: str = "name", has_pack: bool = False
+    ) -> list[tuple]:
         match search_by:
             case "id":
                 self.cursor.execute("SELECT * FROM beats WHERE id = ?", (query,))
@@ -249,7 +263,7 @@ class BeatManager:
         name = " ".join(parts[: key_index - 1])
         return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
 
-    def add_loops_from_filenames(self, filenames: List[str]):
+    def add_loops_from_filenames(self, filenames: List[str]) -> None:
         added_count = 0
         for filename in filenames:
             try:
@@ -261,7 +275,7 @@ class BeatManager:
 
         print(f"Added {added_count} loops to the database.")
 
-    def add_beats_from_file(self, file_path: str, item_type: str):
+    def add_beats_from_file(self, file_path: str, item_type: str) -> None:
         with open(file_path, "r") as file:
             filenames = file.read().splitlines()
 
@@ -271,7 +285,7 @@ class BeatManager:
             self.add_beats_from_filenames(filenames)
 
 
-def main():
+def main() -> None:
     cfg = DBConfig()
     beat_manager = BeatManager(cfg.db_beats)
     loop_manager = BeatManager(cfg.db_loops)
@@ -296,7 +310,7 @@ def main():
             print("Invalid command. Please try again.")
 
 
-def manage_items(manager, item_type):
+def manage_items(manager: BeatManager, item_type: str) -> None:
     print(f"{item_type} Management")
     print(
         "Available commands: list, add_properties, add_filename, add_file_list, remove, add_links, search, back"
