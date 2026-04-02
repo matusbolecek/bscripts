@@ -246,7 +246,9 @@ class BeatManager:
         parts = filename.rsplit(".", 1)[0].split()
 
         key_index = next(
-            i for i in range(len(parts) - 1, -1, -1) if parts[i].lower().endswith("min")
+            i
+            for i in range(len(parts) - 1, -1, -1)
+            if parts[i].lower().endswith(("min", "maj"))
         )
         key = parts[key_index]
         tempo = int(parts[key_index - 1])

@@ -5,8 +5,8 @@ import os
 import sys
 
 
-def listdir_nohidden(path: Path) -> list[Path]:
-    return [p for p in path.iterdir() if not p.name.startswith(".")]
+def listdir_nohidden(path: Path | str) -> list[Path]:
+    return [p for p in Path(path).iterdir() if not p.name.startswith(".")]
 
 
 def dircheck(dir: Path) -> None:
@@ -16,11 +16,7 @@ def dircheck(dir: Path) -> None:
 
 
 def count_files(directory, condition):
-    return sum(
-        1
-        for path in listdir_nohidden(directory)
-        if condition(os.path.join(directory, path))
-    )
+    return sum(1 for path in listdir_nohidden(directory) if condition(path))
 
 
 def bpm_convert(bpm: int, bars: int) -> float:
@@ -105,7 +101,8 @@ class FFcomms:
             "-c:v",
             "libx264",
             "-preset",
-            "fast" "-c:a",
+            "fast",
+            "-c:a",
             "aac",
             "-t",
             str(duration),

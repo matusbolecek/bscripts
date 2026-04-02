@@ -73,7 +73,8 @@ class Process:
             sys.exit(1)
 
     def _check_duplicate_in_database(self, filename) -> bool:
-        return self.manager.beat_exists(filename)
+        parsed_beat = self.manager.parse_filename(filename)
+        return self.manager.beat_exists(parsed_beat.name)
 
     def _run(self, command) -> None:
         subprocess.run(
@@ -193,6 +194,7 @@ class Process:
                 print("Retrying with a different video and picture...")
 
         print(f"Rendering MP3 {num}/{total}")
+        Path(self.config.mp3_dir).mkdir(parents=True, exist_ok=True)
         mp3_name = os.path.join(
             self.config.mp3_dir, f"{master_file.stem} ({self.artist_picked}).mp3"
         )
@@ -213,10 +215,12 @@ if __name__ == "__main__":
     rootdir = UserPath()
     rootdir.read_while()
 
-    processor.check_picture_count(rootdir.path)
+    root_path = Path(rootdir.path)
 
-    total_folders = sum(1 for _ in listdir_nohidden(rootdir.path))
-    for num, folder in enumerate(listdir_nohidden(rootdir.path), 1):
-        processor.process_folder(os.path.join(rootdir.path, folder), num, total_folders)
+    processor.check_picture_count(root_path)
+
+    total_folders = sum(1 for _ in listdir_nohidden(root_path))
+    for num, folder in enumerate(listdir_nohidden(root_path), 1):
+        processor.process_folder(folder, num, total_folders)
 
     processor.data_write()

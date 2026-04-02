@@ -4,7 +4,6 @@ from dropbox.exceptions import AuthError
 from dropbox.files import WriteMode
 import re
 import logging
-from beatstars_config import Publisher
 
 # Set up logging
 logging.basicConfig(
@@ -207,4 +206,3 @@ def process_files_with_dropbox(folder_path, dropbox_folder_name, token):
 if __name__ == "__main__":
     # You can add test code here if needed
     pass
-
