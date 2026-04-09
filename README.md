@@ -1,5 +1,11 @@
 # bscripts: Automated Type-Beat Processing Pipeline
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python&logoColor=white)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-Processing-007808.svg?logo=ffmpeg&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-Database-003B57.svg?logo=sqlite&logoColor=white)
+![Dropbox](https://img.shields.io/badge/Dropbox-Cloud%20Sync-0061FF.svg?logo=dropbox&logoColor=white)
+A comprehensive Python-based pipeline that fully automates the processing, cloud-syncing, and bulk-scheduling of type-beats and music loops.
+
 # The Problem
 Consistently uploading type-beats to YouTube and beat stores is a highly repetitive and tedious process. For every single beat, a producer has to render a looping video, compress stems into a `.zip` archive, generate an MP3 and WAV master, design thumbnails, and manually type out YouTube descriptions with the correct BPM, Key, and purchase links. When trying to maintain a daily upload schedule, this administrative overhead takes hours away from actual music production and quickly leads to burnout. 
 
