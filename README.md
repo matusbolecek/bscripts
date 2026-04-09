@@ -4,6 +4,7 @@
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-Processing-007808.svg?logo=ffmpeg&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57.svg?logo=sqlite&logoColor=white)
 ![Dropbox](https://img.shields.io/badge/Dropbox-Cloud%20Sync-0061FF.svg?logo=dropbox&logoColor=white)
+
 A comprehensive Python-based pipeline that fully automates the processing, cloud-syncing, and bulk-scheduling of type-beats and music loops.
 
 # The Problem
