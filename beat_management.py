@@ -3,9 +3,16 @@ from dataclasses import dataclass
 from typing import Optional, List
 import os
 from pathlib import Path
+import re
+import logging
 
 from config import DBConfig
 
+# Pattern: [Producers] - [Name] [BPM] [Key]
+BEAT_PATTERN = re.compile(r"^(?P<collabs>.+?)\s-\s(?P<name>.+?)\s+(?P<bpm>\d+)\s+(?P<key>[A-Ga-g]#?[A-Za-z]*)")
+
+# Pattern: [Name] [BPM] [Key] x[Producers]
+LOOP_PATTERN = re.compile(r"^(?P<name>.+?)\s+(?P<bpm>\d+)\s+(?P<key>[A-Ga-g]#?[A-Za-z]*)\s+x(?P<collabs>.+)")
 
 @dataclass
 class Beat:
@@ -155,29 +162,41 @@ class BeatManager:
         return short_key
 
     @classmethod
-    def parse_filename(cls, filename: str) -> Beat:
-        parts = filename.split(" - ")
-        collaborators_part = parts[0]
-        rest = parts[1]
+    def parse_filename(cls, filename: str) -> Optional[Beat]:
+        try:
+            clean_name = filename.rsplit('.', 1)[0]
+            
+            match = BEAT_PATTERN.match(clean_name)
+            if not match:
+                raise ValueError(f"Filename does not match Beat convention: {filename}")
 
-        if "x" in collaborators_part:
-            collaborators = collaborators_part.replace("@", "").replace(" x ", ", ")
-        else:
-            collaborators = collaborators_part.replace("@", "")
+            data = match.groupdict()
+            
+            collaborators = data['collabs'].replace("@", "").replace(" x ", ", ")
+            
+            return Beat(
+                name=data['name'].strip().title(),
+                collaborators=collaborators,
+                key=cls.convert_key(data['key']),
+                tempo=int(data['bpm'])
+            )
 
-        name_tempo_key = rest.rsplit(" ", 2)
-        name = name_tempo_key[0].title()
-        tempo = int(name_tempo_key[1])
-        short_key = name_tempo_key[2].split("_")[0]
-        key = cls.convert_key(short_key)
-
-        return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
+        except Exception as e:
+            logging.error(f"Failed to parse beat filename '{filename}': {e}")
+            return None
 
     def add_beats_from_filenames(self, filenames: List[str]) -> None:
+        added_count = 0
         for filename in filenames:
             beat = self.parse_filename(filename)
-            self.add_beat(beat)
-        print(f"Added {len(filenames)} beats to the database.")
+
+            if beat:
+                self.add_beat(beat)
+                added_count += 1
+            else:
+                print(f"Skipping invalid filename: {filename}")
+        
+        print(f"Successfully processed {added_count}/{len(filenames)} files.")
 
     def list_beats(self) -> None:
         for beat in self.get_all_beats():
@@ -248,38 +267,34 @@ class BeatManager:
 
         return self.cursor.fetchall()
 
-    def parse_loop_filename(self, filename: str) -> Beat:
-        parts = filename.rsplit(".", 1)[0].split()
+    @classmethod
+    def parse_loop_filename(cls, filename: str) -> Optional[Beat]:
+        try:
+            clean_name = filename.rsplit('.', 1)[0]
+            
+            match = LOOP_PATTERN.match(clean_name)
+            if not match:
+                raise ValueError(f"Filename does not match Loop convention: {filename}")
 
-        key_index = next(
-            i
-            for i in range(len(parts) - 1, -1, -1)
-            if parts[i].lower().endswith(("min", "maj"))
-        )
-        key = parts[key_index]
-        tempo = int(parts[key_index - 1])
-
-        collaborators = self.config.prodname
-        if "x" in parts:
-            x_index = parts.index("x")
-            collaborators = ", ".join(
-                part.strip("@")
-                for part in parts[x_index:]
-                if part != "x" and not part.isdigit() and part != key
+            data = match.groupdict()
+            
+            return Beat(
+                name=data['name'].strip(),
+                collaborators=data['collabs'].replace("@", ""),
+                key=data['key'],
+                tempo=int(data['bpm'])
             )
-
-        name = " ".join(parts[: key_index - 1])
-        return Beat(name=name, collaborators=collaborators, key=key, tempo=tempo)
+        except Exception as e:
+            logging.error(f"Failed to parse loop filename '{filename}': {e}")
+            return None
 
     def add_loops_from_filenames(self, filenames: List[str]) -> None:
         added_count = 0
         for filename in filenames:
-            try:
-                self.add_beat(self.parse_loop_filename(filename))
+            beat = self.parse_loop_filename(filename)
+            if beat:
+                self.add_beat(beat)
                 added_count += 1
-
-            except Exception as e:
-                print(f"Error processing file '{filename}': {str(e)}")
 
         print(f"Added {added_count} loops to the database.")
 

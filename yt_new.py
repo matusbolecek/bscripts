@@ -159,6 +159,10 @@ class Uploader:
         folder_name = os.path.basename(folder_path)
         try:
             beat_parsed = BeatManager.parse_filename(folder_name)
+            if not beat_parsed:
+                logging.warning(f"Could not parse folder name structure: {folder_name}")
+                return None
+            
             beatname = beat_parsed.name.lower()
 
         except Exception as e:

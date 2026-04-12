@@ -80,7 +80,10 @@ class Process:
 
     def _check_duplicate_in_database(self, filename) -> bool:
         parsed_beat = self.manager.parse_filename(filename)
-        return self.manager.beat_exists(parsed_beat.name)
+        if parsed_beat:
+            return self.manager.beat_exists(parsed_beat.name)
+
+        return False
 
     def _run(self, command) -> None:
         subprocess.run(
