@@ -135,9 +135,7 @@ class Uploader:
         self.upload_cfg = UploadCFG()
         self.channel_cfg = ChannelCFG(channel_name)
         self.channel_name = channel_name
-
-        db_cfg = DBConfig()
-        self.manager = BeatManager(db_cfg.db_beats)
+        self._db_cfg = DBConfig()
 
     def _find_file(self, folder_path: str, match_fn) -> Optional[str]:
         for file in os.listdir(folder_path):
@@ -243,8 +241,6 @@ class Uploader:
             data = self.process_folder(folder_path)
             if data:
                 all_data.append(data)
-
-        self.manager.close()
 
         if all_data:
             self._save_csv(all_data)

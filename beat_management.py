@@ -216,6 +216,12 @@ class BeatManager:
     def close(self) -> None:
         self.conn.close()
 
+    def __enter__(self) -> "BeatManager":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
     def search_beats(
         self, query: str, search_by: str = "name", has_pack: bool = False
     ) -> list[tuple]:
@@ -289,28 +295,21 @@ class BeatManager:
 
 def main() -> None:
     cfg = DBConfig()
-    beat_manager = BeatManager(cfg.db_beats)
-    loop_manager = BeatManager(cfg.db_loops)
 
     print("Welcome to the Beat and Loop Management System!")
 
-    while True:
-        command = input("Enter command (beats/loops/exit): ").lower()
+    with BeatManager(cfg.db_beats) as beat_manager, BeatManager(cfg.db_loops) as loop_manager:
+        while True:
+            command = input("Enter command (beats/loops/exit): ").lower()
 
-        if command == "exit":
-            beat_manager.close()
-            loop_manager.close()
-            break
-
-        elif command.startswith("b"):
-            manage_items(beat_manager, "Beat")
-
-        elif command.startswith("l"):
-            manage_items(loop_manager, "Loop")
-
-        else:
-            print("Invalid command. Please try again.")
-
+            if command == "exit":
+                break
+            elif command.startswith("b"):
+                manage_items(beat_manager, "Beat")
+            elif command.startswith("l"):
+                manage_items(loop_manager, "Loop")
+            else:
+                print("Invalid command. Please try again.")
 
 def manage_items(manager: BeatManager, item_type: str) -> None:
     print(f"{item_type} Management")

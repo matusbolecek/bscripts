@@ -26,6 +26,12 @@ class Process:
 
         self.beatlist = []
 
+    def __enter__(self) -> "Process":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.manager.close()
+
     def get_valid_artist(self) -> None:
         while True:
             artist = input(f"Choose an artist ({' / '.join(self.artists)}): ")
@@ -209,18 +215,17 @@ class Process:
 
 
 if __name__ == "__main__":
-    processor = Process()
-    processor.get_valid_artist()
+    with Process() as processor:
+        processor.get_valid_artist()
 
-    rootdir = UserPath()
-    rootdir.read_while()
+        rootdir = UserPath()
+        rootdir.read_while()
 
-    root_path = Path(rootdir.path)
+        root_path = Path(rootdir.path)
+        processor.check_picture_count(root_path)
 
-    processor.check_picture_count(root_path)
+        total_folders = sum(1 for _ in listdir_nohidden(root_path))
+        for num, folder in enumerate(listdir_nohidden(root_path), 1):
+            processor.process_folder(folder, num, total_folders)
 
-    total_folders = sum(1 for _ in listdir_nohidden(root_path))
-    for num, folder in enumerate(listdir_nohidden(root_path), 1):
-        processor.process_folder(folder, num, total_folders)
-
-    processor.data_write()
+        processor.data_write()
